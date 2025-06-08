@@ -105,6 +105,9 @@ export interface LeaderboardEntry {
   name: string;
   completedCount: number;
   avgSubmissionTime: string;
+  totalScore: number;
+  weeklyScore?: number;
+  monthlyScore?: number;
 }
 
 export interface AuthState {

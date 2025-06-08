@@ -22,3 +22,20 @@ export const getLeaderboard = async (classId?: string) => {
   const response = await api.get(url);
   return response.data as LeaderboardEntry[];
 };
+
+export const getWeeklyLeaderboard = async (classId?: string) => {
+  const url = classId ? `/analytics/leaderboard/weekly?classId=${classId}` : '/analytics/leaderboard/weekly';
+  const response = await api.get(url);
+  return response.data as LeaderboardEntry[];
+};
+
+export const getMonthlyLeaderboard = async (classId?: string) => {
+  const url = classId ? `/analytics/leaderboard/monthly?classId=${classId}` : '/analytics/leaderboard/monthly';
+  const response = await api.get(url);
+  return response.data as LeaderboardEntry[];
+};
+
+export const getClassLeaderboard = async (classId: string) => {
+  const response = await api.get(`/analytics/leaderboard/class/${classId}`);
+  return response.data as LeaderboardEntry[];
+};

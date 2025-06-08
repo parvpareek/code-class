@@ -45,18 +45,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isLoading: false,
           });
         }
-      } catch (error) {
-        // Clear storage if there's an error (e.g., invalid token)
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+      } catch (error: any) {
+        console.error('Error loading user on refresh:', error);
         
-        setAuthState({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          isLoading: false,
-          error: "Session expired, please log in again.",
-        });
+        // Only clear storage if it's an authentication error
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          
+          setAuthState({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: "Session expired, please log in again.",
+          });
+        } else {
+          // For other errors (network, server), try to keep user logged in
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            try {
+              const user = JSON.parse(storedUser);
+              setAuthState({
+                user,
+                token,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+              });
+            } catch {
+              // Fallback: clear everything if stored user is corrupted
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              setAuthState({
+                user: null,
+                token: null,
+                isAuthenticated: false,
+                isLoading: false,
+                error: "Session expired, please log in again.",
+              });
+            }
+          } else {
+            setAuthState({
+              user: null,
+              token: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: "Unable to verify session. Please log in again.",
+            });
+          }
+        }
       }
     };
 

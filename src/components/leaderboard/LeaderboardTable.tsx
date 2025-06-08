@@ -8,12 +8,13 @@ import { cn } from '../../lib/utils';
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
+  showScore?: boolean;
 }
 
-type SortKey = 'rank' | 'name' | 'completedCount' | 'avgSubmissionTime';
+type SortKey = 'rank' | 'name' | 'completedCount' | 'avgSubmissionTime' | 'totalScore';
 type SortDirection = 'asc' | 'desc';
 
-const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries }) => {
+const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries, showScore = false }) => {
   const [sortKey, setSortKey] = useState<SortKey>('rank');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -125,6 +126,19 @@ const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries }) => {
               <SortIcon active={sortKey === 'avgSubmissionTime'} />
             </Button>
           </TableHead>
+          {showScore && (
+            <TableHead>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => handleSort('totalScore')}
+                className="font-medium flex items-center -ml-3"
+              >
+                Score
+                <SortIcon active={sortKey === 'totalScore'} />
+              </Button>
+            </TableHead>
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -142,6 +156,11 @@ const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries }) => {
             <TableCell>{entry.name}</TableCell>
             <TableCell>{entry.completedCount}</TableCell>
             <TableCell>{entry.avgSubmissionTime}</TableCell>
+            {showScore && (
+              <TableCell>
+                <span className="font-mono text-blue-600">{entry.totalScore}</span>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

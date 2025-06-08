@@ -12,7 +12,7 @@ export const signup = async (name: string, email: string, password: string, role
 };
 
 export const getCurrentUser = async () => {
-  const response = await api.get('/auth/me');
+  const response = await api.get('/auth/profile');
   return response.data as User;
 };
 
