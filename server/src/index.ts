@@ -11,7 +11,7 @@ import analyticsRoutes from './api/analytics';
 import { scheduleSubmissionChecks } from './cron';
 
 const app: Express = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 4000;
 
 // Configure CORS to allow requests from frontend
 const corsOptions = {

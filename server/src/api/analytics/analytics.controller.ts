@@ -71,17 +71,28 @@ const calculateScore = (completedCount: number, avgSubmissionHours: number): num
 const calculateAvgSubmissionTime = (submissions: any[]): number => {
   if (submissions.length === 0) return 0;
   
+  let validSubmissions = 0;
   const totalHours = submissions.reduce((sum: number, submission: any) => {
-    if (!submission.submissionTime) return sum;
+    if (!submission.submissionTime || !submission.problem?.assignment?.assignDate) {
+      return sum;
+    }
     
     const assignDate = new Date(submission.problem.assignment.assignDate);
     const submitDate = new Date(submission.submissionTime);
+
+    if (isNaN(assignDate.getTime()) || isNaN(submitDate.getTime())) {
+      return sum;
+    }
+    
     const hoursDiff = (submitDate.getTime() - assignDate.getTime()) / (1000 * 60 * 60);
     
+    if (hoursDiff < 0) return sum;
+
+    validSubmissions++;
     return sum + hoursDiff;
   }, 0);
   
-  return totalHours / submissions.length;
+  return validSubmissions > 0 ? totalHours / validSubmissions : 0;
 };
 
 // Format hours to readable string
@@ -102,22 +113,21 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
   try {
     const { classId } = req.query;
 
-    const whereClause: any = {
-      role: 'STUDENT' as Role,
-      ...(classId && classId !== 'all' && {
-        classes: {
-          some: {
-            classId: classId as string,
-          },
-        },
-      }),
-    };
+    const userWhere: any = { role: 'STUDENT' };
+    if (classId && classId !== 'all') {
+      userWhere.classes = { some: { classId: classId as string } };
+    }
+
+    const submissionWhere: any = { completed: true };
+    if (classId && classId !== 'all') {
+      submissionWhere.problem = { assignment: { classId: classId as string } };
+    }
 
     const students = await prisma.user.findMany({
-      where: whereClause,
+      where: userWhere,
       include: {
         submissions: {
-          where: { completed: true },
+          where: submissionWhere,
           include: {
             problem: {
               include: {
@@ -129,21 +139,22 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
       },
     });
 
-    const leaderboardEntries: LeaderboardEntry[] = students.map((student: any) => {
-      const completedSubmissions = student.submissions;
-      const completedCount = completedSubmissions.length;
-      const avgSubmissionHours = calculateAvgSubmissionTime(completedSubmissions);
-      const totalScore = calculateScore(completedCount, avgSubmissionHours);
+    const leaderboardEntries: LeaderboardEntry[] = students
+      .map((student: any) => {
+        const completedSubmissions = student.submissions;
+        const completedCount = completedSubmissions.length;
+        const avgSubmissionHours = calculateAvgSubmissionTime(completedSubmissions);
+        const totalScore = calculateScore(completedCount, avgSubmissionHours);
 
-      return {
-        id: student.id,
-        rank: 0,
-        name: student.name,
-        completedCount,
-        avgSubmissionTime: formatSubmissionTime(avgSubmissionHours),
-        totalScore,
-      };
-    });
+        return {
+          id: student.id,
+          rank: 0,
+          name: student.name,
+          completedCount,
+          avgSubmissionTime: formatSubmissionTime(avgSubmissionHours),
+          totalScore,
+        };
+      });
 
     leaderboardEntries.sort((a, b) => b.totalScore - a.totalScore);
     leaderboardEntries.forEach((entry, index) => {
@@ -167,25 +178,24 @@ export const getWeeklyLeaderboard = async (req: Request, res: Response): Promise
     const weekStart = new Date(now.setDate(diff));
     weekStart.setHours(0, 0, 0, 0);
 
-    const whereClause: any = {
-      role: 'STUDENT' as Role,
-      ...(classId && classId !== 'all' && {
-        classes: {
-          some: {
-            classId: classId as string,
-          },
-        },
-      }),
+    const userWhere: any = { role: 'STUDENT' };
+    if (classId && classId !== 'all') {
+      userWhere.classes = { some: { classId: classId as string } };
+    }
+
+    const submissionWhere: any = {
+      completed: true,
+      submissionTime: { gte: weekStart },
     };
+    if (classId && classId !== 'all') {
+      submissionWhere.problem = { assignment: { classId: classId as string } };
+    }
 
     const students = await prisma.user.findMany({
-      where: whereClause,
+      where: userWhere,
       include: {
         submissions: {
-          where: {
-            completed: true,
-            submissionTime: { gte: weekStart },
-          },
+          where: submissionWhere,
           include: {
             problem: {
               include: {
@@ -197,22 +207,23 @@ export const getWeeklyLeaderboard = async (req: Request, res: Response): Promise
       },
     });
 
-    const leaderboardEntries: LeaderboardEntry[] = students.map((student: any) => {
-      const completedSubmissions = student.submissions;
-      const completedCount = completedSubmissions.length;
-      const avgSubmissionHours = calculateAvgSubmissionTime(completedSubmissions);
-      const weeklyScore = calculateScore(completedCount, avgSubmissionHours);
+    const leaderboardEntries: LeaderboardEntry[] = students
+      .map((student: any) => {
+        const completedSubmissions = student.submissions;
+        const completedCount = completedSubmissions.length;
+        const avgSubmissionHours = calculateAvgSubmissionTime(completedSubmissions);
+        const weeklyScore = calculateScore(completedCount, avgSubmissionHours);
 
-      return {
-        id: student.id,
-        rank: 0,
-        name: student.name,
-        completedCount,
-        avgSubmissionTime: formatSubmissionTime(avgSubmissionHours),
-        totalScore: weeklyScore,
-        weeklyScore,
-      };
-    });
+        return {
+          id: student.id,
+          rank: 0,
+          name: student.name,
+          completedCount,
+          avgSubmissionTime: formatSubmissionTime(avgSubmissionHours),
+          totalScore: weeklyScore,
+          weeklyScore,
+        };
+      });
 
     leaderboardEntries.sort((a, b) => b.totalScore - a.totalScore);
     leaderboardEntries.forEach((entry, index) => {
@@ -233,25 +244,24 @@ export const getMonthlyLeaderboard = async (req: Request, res: Response): Promis
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const whereClause: any = {
-      role: 'STUDENT' as Role,
-      ...(classId && classId !== 'all' && {
-        classes: {
-          some: {
-            classId: classId as string,
-          },
-        },
-      }),
+    const userWhere: any = { role: 'STUDENT' };
+    if (classId && classId !== 'all') {
+      userWhere.classes = { some: { classId: classId as string } };
+    }
+
+    const submissionWhere: any = {
+      completed: true,
+      submissionTime: { gte: monthStart },
     };
+    if (classId && classId !== 'all') {
+      submissionWhere.problem = { assignment: { classId: classId as string } };
+    }
 
     const students = await prisma.user.findMany({
-      where: whereClause,
+      where: userWhere,
       include: {
         submissions: {
-          where: {
-            completed: true,
-            submissionTime: { gte: monthStart },
-          },
+          where: submissionWhere,
           include: {
             problem: {
               include: {
@@ -263,22 +273,23 @@ export const getMonthlyLeaderboard = async (req: Request, res: Response): Promis
       },
     });
 
-    const leaderboardEntries: LeaderboardEntry[] = students.map((student: any) => {
-      const completedSubmissions = student.submissions;
-      const completedCount = completedSubmissions.length;
-      const avgSubmissionHours = calculateAvgSubmissionTime(completedSubmissions);
-      const monthlyScore = calculateScore(completedCount, avgSubmissionHours);
+    const leaderboardEntries: LeaderboardEntry[] = students
+      .map((student: any) => {
+        const completedSubmissions = student.submissions;
+        const completedCount = completedSubmissions.length;
+        const avgSubmissionHours = calculateAvgSubmissionTime(completedSubmissions);
+        const monthlyScore = calculateScore(completedCount, avgSubmissionHours);
 
-      return {
-        id: student.id,
-        rank: 0,
-        name: student.name,
-        completedCount,
-        avgSubmissionTime: formatSubmissionTime(avgSubmissionHours),
-        totalScore: monthlyScore,
-        monthlyScore,
-      };
-    });
+        return {
+          id: student.id,
+          rank: 0,
+          name: student.name,
+          completedCount,
+          avgSubmissionTime: formatSubmissionTime(avgSubmissionHours),
+          totalScore: monthlyScore,
+          monthlyScore,
+        };
+      });
 
     leaderboardEntries.sort((a, b) => b.totalScore - a.totalScore);
     leaderboardEntries.forEach((entry, index) => {
@@ -295,21 +306,21 @@ export const getMonthlyLeaderboard = async (req: Request, res: Response): Promis
 export const getClassLeaderboard = async (req: Request, res: Response): Promise<void> => {
   try {
     const { classId } = req.params;
+    if (!classId) {
+      res.status(400).json({ message: 'Class ID is required' });
+      return;
+    }
 
     const students = await prisma.user.findMany({
       where: {
         role: 'STUDENT',
-        classes: {
-          some: { classId },
-        },
+        classes: { some: { classId } },
       },
       include: {
         submissions: {
           where: {
             completed: true,
-            problem: {
-              assignment: { classId },
-            },
+            problem: { assignment: { classId } },
           },
           include: {
             problem: {
@@ -322,21 +333,22 @@ export const getClassLeaderboard = async (req: Request, res: Response): Promise<
       },
     });
 
-    const leaderboardEntries: LeaderboardEntry[] = students.map((student: any) => {
-      const completedSubmissions = student.submissions;
-      const completedCount = completedSubmissions.length;
-      const avgSubmissionHours = calculateAvgSubmissionTime(completedSubmissions);
-      const totalScore = calculateScore(completedCount, avgSubmissionHours);
+    const leaderboardEntries: LeaderboardEntry[] = students
+      .map((student: any) => {
+        const completedSubmissions = student.submissions;
+        const completedCount = completedSubmissions.length;
+        const avgSubmissionHours = calculateAvgSubmissionTime(completedSubmissions);
+        const totalScore = calculateScore(completedCount, avgSubmissionHours);
 
-      return {
-        id: student.id,
-        rank: 0,
-        name: student.name,
-        completedCount,
-        avgSubmissionTime: formatSubmissionTime(avgSubmissionHours),
-        totalScore,
-      };
-    });
+        return {
+          id: student.id,
+          rank: 0,
+          name: student.name,
+          completedCount,
+          avgSubmissionTime: formatSubmissionTime(avgSubmissionHours),
+          totalScore,
+        };
+      });
 
     leaderboardEntries.sort((a, b) => b.totalScore - a.totalScore);
     leaderboardEntries.forEach((entry, index) => {
@@ -448,4 +460,4 @@ export const getDifficultyData = async (req: Request, res: Response): Promise<vo
     console.error('Error fetching difficulty data:', error);
     res.status(500).json({ message: 'Error fetching difficulty data', error });
   }
-}; 
+};

@@ -6,7 +6,7 @@ import {
   getMonthlyLeaderboard,
   getClassCompletionData,
   getPlatformData,
-  getDifficultyData 
+  getDifficultyData
 } from './analytics.controller';
 import { protect } from '../auth/auth.middleware';
 
@@ -21,6 +21,6 @@ router.get('/leaderboard/class/:classId', protect, getClassLeaderboard);
 // Analytics endpoints
 router.get('/:classId/completion', protect, getClassCompletionData);
 router.get('/:classId/platforms', protect, getPlatformData);
-router.get('/:classId/difficulty', protect, getDifficultyData);
+router.get('/difficulty', protect, getDifficultyData);
 
 export default router; 

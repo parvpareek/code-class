@@ -1,4 +1,3 @@
-
 import api from './axios';
 import { CompletionData, PlatformData, DifficultyData, LeaderboardEntry } from '../types';
 
@@ -12,30 +11,30 @@ export const getPlatformData = async (classId: string) => {
   return response.data as PlatformData[];
 };
 
-export const getDifficultyData = async (classId: string) => {
-  const response = await api.get(`/analytics/${classId}/difficulty`);
-  return response.data as DifficultyData[];
+export const getDifficultyData = async (): Promise<DifficultyData[]> => {
+  const response = await api.get('/analytics/difficulty');
+  return response.data;
 };
 
-export const getLeaderboard = async (classId?: string) => {
-  const url = classId ? `/analytics/leaderboard?classId=${classId}` : '/analytics/leaderboard';
-  const response = await api.get(url);
-  return response.data as LeaderboardEntry[];
+export const getLeaderboard = async (classId?: string): Promise<LeaderboardEntry[]> => {
+  const params = classId && classId !== 'all' ? { classId } : {};
+  const response = await api.get('/analytics/leaderboard', { params });
+  return response.data;
 };
 
-export const getWeeklyLeaderboard = async (classId?: string) => {
-  const url = classId ? `/analytics/leaderboard/weekly?classId=${classId}` : '/analytics/leaderboard/weekly';
-  const response = await api.get(url);
-  return response.data as LeaderboardEntry[];
+export const getWeeklyLeaderboard = async (classId?: string): Promise<LeaderboardEntry[]> => {
+  const params = classId && classId !== 'all' ? { classId } : {};
+  const response = await api.get('/analytics/leaderboard/weekly', { params });
+  return response.data;
 };
 
-export const getMonthlyLeaderboard = async (classId?: string) => {
-  const url = classId ? `/analytics/leaderboard/monthly?classId=${classId}` : '/analytics/leaderboard/monthly';
-  const response = await api.get(url);
-  return response.data as LeaderboardEntry[];
+export const getMonthlyLeaderboard = async (classId?: string): Promise<LeaderboardEntry[]> => {
+  const params = classId && classId !== 'all' ? { classId } : {};
+  const response = await api.get('/analytics/leaderboard/monthly', { params });
+  return response.data;
 };
 
-export const getClassLeaderboard = async (classId: string) => {
+export const getClassLeaderboard = async (classId: string): Promise<LeaderboardEntry[]> => {
   const response = await api.get(`/analytics/leaderboard/class/${classId}`);
-  return response.data as LeaderboardEntry[];
+  return response.data;
 };

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { LeaderboardEntry } from '../../types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
@@ -37,8 +36,20 @@ const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries, showScore 
     if (sortKey === 'avgSubmissionTime') {
       // Convert time strings to minutes for comparison
       const timeToMinutes = (timeStr: string) => {
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        return hours * 60 + minutes;
+        if (timeStr.startsWith('<')) return 30; // Approx. for sorting
+        
+        let totalMinutes = 0;
+        const parts = timeStr.split(' ');
+
+        parts.forEach(part => {
+          if (part.endsWith('d')) {
+            totalMinutes += parseInt(part, 10) * 24 * 60;
+          } else if (part.endsWith('h')) {
+            totalMinutes += parseInt(part, 10) * 60;
+          }
+        });
+        
+        return totalMinutes;
       };
       
       const aTime = timeToMinutes(a.avgSubmissionTime);

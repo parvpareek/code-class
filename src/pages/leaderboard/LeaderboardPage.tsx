@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { getLeaderboard, getWeeklyLeaderboard, getMonthlyLeaderboard } from '../../api/analytics';
 import { getMyClasses } from '../../api/classes';
