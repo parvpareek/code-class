@@ -21,6 +21,20 @@ const DEFAULT_SUBNET_ID = process.env.SUBNET_ID;
 const IAM_INSTANCE_PROFILE = process.env.IAM_INSTANCE_PROFILE || 'Judge0InstanceProfile';
 
 /**
+ * Sanitize testId to prevent command injection
+ * Allows only alphanumeric, dash, and underscore characters
+ */
+function sanitizeTestId(testId) {
+  if (typeof testId !== 'string') {
+    throw new Error('Invalid testId type');
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(testId)) {
+    throw new Error('Invalid testId: only alphanumeric, dash, and underscore characters are allowed');
+  }
+  return testId;
+}
+
+/**
  * Lambda handler function
  */
 exports.handler = async (event, context) => {
@@ -32,21 +46,24 @@ exports.handler = async (event, context) => {
     if (!testId || !expectedStudents || !duration) {
       throw new Error('Missing required parameters');
     }
+
+    // Sanitize testId before use
+    const safeTestId = sanitizeTestId(testId);
     
-    console.log(`Launching infrastructure for test ${testId}`);
+    console.log(`Launching infrastructure for test ${safeTestId}`);
     
     // Generate user data script
-    const userData = generateUserDataScript(testId);
+    const userData = generateUserDataScript(safeTestId);
     
     // Launch EC2 instance
-    const instanceResult = await launchEC2Instance(testId, userData);
+    const instanceResult = await launchEC2Instance(safeTestId, userData);
     
     // Store metadata
-    await storeInstanceMetadata(testId, instanceResult);
+    await storeInstanceMetadata(safeTestId, instanceResult);
     
     return {
       statusCode: 200,
-      testId,
+      testId: safeTestId,
       instanceId: instanceResult.instanceId,
       publicIp: instanceResult.publicIp,
       judgeUrl: `http://${instanceResult.publicIp}:2358`,
