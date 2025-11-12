@@ -3,6 +3,7 @@ import prisma from '../../lib/prisma';
 import { customAlphabet } from 'nanoid';
 import { Prisma } from '@prisma/client';
 import { checkAuthorizationForClass, checkTeacherAuthorization } from '../../services/authorization.service';
+import redisClient from '../../lib/redis';
 
 // Generate a unique 6-character code for joining a class
 const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
@@ -137,6 +138,16 @@ export const joinClass = async (req: Request, res: Response): Promise<void> => {
 
           console.log(`[DEBUG] Created ${submissions.length} submission records for user ${userId}`);
         }
+      }
+    });
+
+    // Clear analytics cache for this class
+    const analyticsCacheKey = `__express__/api/v1/analytics/class/${classToJoin.id}`;
+    redisClient.del(analyticsCacheKey, (err) => {
+      if (err) {
+        console.error('Error clearing analytics cache:', err);
+      } else {
+        console.log(`✅ Cleared analytics cache for class ${classToJoin.id} after student joined`);
       }
     });
 
@@ -519,6 +530,16 @@ export const leaveClass = async (req: Request, res: Response): Promise<void> => 
       });
     });
 
+    // Clear analytics cache for this class
+    const analyticsCacheKey = `__express__/api/v1/analytics/class/${classId}`;
+    redisClient.del(analyticsCacheKey, (err) => {
+      if (err) {
+        console.error('Error clearing analytics cache:', err);
+      } else {
+        console.log(`✅ Cleared analytics cache for class ${classId} after student left`);
+      }
+    });
+
     res.status(200).json({ message: 'Successfully left the class' });
   } catch (error) {
     console.error('Error leaving class:', error);
@@ -598,6 +619,16 @@ export const removeStudentFromClass = async (req: Request, res: Response): Promi
           },
         },
       });
+    });
+
+    // Clear analytics cache for this class
+    const analyticsCacheKey = `__express__/api/v1/analytics/class/${classId}`;
+    redisClient.del(analyticsCacheKey, (err) => {
+      if (err) {
+        console.error('Error clearing analytics cache:', err);
+      } else {
+        console.log(`✅ Cleared analytics cache for class ${classId} after removing student ${studentId}`);
+      }
     });
 
     res.status(200).json({ message: 'Student successfully removed from class' });
