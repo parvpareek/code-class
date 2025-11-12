@@ -244,6 +244,8 @@ export const StudentAnalyticsDashboard: React.FC<StudentAnalyticsDashboardProps>
   };
 
   const handleRefresh = () => {
+    // Clear localStorage cache before fetching fresh data
+    clearClassAnalyticsCache(classId);
     fetchAnalytics(true);
   };
 
