@@ -96,7 +96,12 @@ const getProblemIdentifier = (platform: string, url: string): string => {
 /**
  * Process only GFG submissions - LeetCode is handled by the enhanced service
  */
-const processGfgSubmissions = async (submissions: (Submission & { user: User, problem: Problem })[]): Promise<number> => {
+const processGfgSubmissions = async (
+  submissions: (Submission & {
+    user: User;
+    problem: Problem & { assignment?: { assignDate: Date | null; dueDate: Date | null } | null };
+  })[]
+): Promise<number> => {
     // Filter to only GFG submissions
     const gfgSubmissions = submissions.filter(s => s.problem.platform.toLowerCase() === 'gfg');
     
@@ -136,13 +141,29 @@ const processGfgSubmissions = async (submissions: (Submission & { user: User, pr
             const isCompleted = gfgSolved.has(problemIdentifier);
 
             if (isCompleted) {
-                console.log(`✅ Marking GFG submission as completed for ${user.name} on ${problem.title}`);
-                const result = await prisma.submission.updateMany({
-                    where: { id: submission.id, completed: false },
-                    data: { completed: true, submissionTime: new Date() },
-                });
-                if (result.count > 0) {
-                  updatedCount++;
+                const currentTime = new Date();
+                const assignDate = problem.assignment?.assignDate;
+                
+                // Check if submission is within assignment window
+                // For GFG, we use current time as submissionTime since we don't have actual submission timestamp
+                const isWithinWindow = !assignDate || currentTime >= assignDate;
+                
+                if (isWithinWindow) {
+                    console.log(`✅ Marking GFG submission as completed for ${user.name} on ${problem.title}`);
+                    const result = await prisma.submission.updateMany({
+                        where: { id: submission.id, completed: false },
+                        data: { completed: true, submissionTime: currentTime },
+                    });
+                    if (result.count > 0) {
+                      updatedCount++;
+                    }
+                } else {
+                    console.log(`⏰ GFG: ${problem.title} solved but before assignment window (start: ${assignDate?.toISOString() || 'N/A'})`);
+                    // Don't mark as completed if before assignment window
+                    const result = await prisma.submission.updateMany({
+                        where: { id: submission.id },
+                        data: { completed: false, submissionTime: currentTime },
+                    });
                 }
             } else {
                 console.log(`❌ GFG problem '${problem.title}' not found in solved list`);
@@ -239,7 +260,14 @@ export const checkSubmissionsForAssignment = async (assignmentId: string, userId
                 completed: false,
                 ...(userId && { userId }),
             },
-            include: { user: true, problem: true },
+            include: { 
+                user: true, 
+                problem: {
+                    include: {
+                        assignment: true
+                    }
+                }
+            },
         });
         
         console.log(`Found ${pendingSubmissions.length} pending submissions for assignment ${assignmentId}`);

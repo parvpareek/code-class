@@ -311,12 +311,21 @@ const processLeetCodeSubmissions = async (
       userId: user.id,
     },
     include: {
-      problem: true
+      problem: {
+        include: {
+          assignment: true
+        }
+      }
     }
   });
 
-  // Create a map of problem slugs to problems
-  const problemSlugMap = new Map<string, { problemId: string; submissionId: string }>();
+  // Create a map of problem slugs to problems with assignment info
+  const problemSlugMap = new Map<string, { 
+    problemId: string; 
+    submissionId: string;
+    assignDate: Date | null;
+    dueDate: Date | null;
+  }>();
   
   userProblems.forEach(submission => {
     if (submission.problem.platform.toLowerCase() === 'leetcode') {
@@ -324,7 +333,9 @@ const processLeetCodeSubmissions = async (
       if (slug) {
         problemSlugMap.set(slug, {
           problemId: submission.problem.id,
-          submissionId: submission.id
+          submissionId: submission.id,
+          assignDate: submission.problem.assignment?.assignDate || null,
+          dueDate: submission.problem.assignment?.dueDate || null
         });
       }
     }
@@ -343,15 +354,35 @@ const processLeetCodeSubmissions = async (
         ? safeDateFromTimestamp(submission.timestamp)
         : new Date();
       
-      await prisma.submission.update({
-        where: { id: data.submissionId },
-        data: {
-          completed: true,
-          submissionTime
-        }
-      });
+      // Check if submission is within assignment window
+      const isWithinWindow = !data.assignDate || submissionTime >= data.assignDate;
+      const isBeforeDueDate = !data.dueDate || submissionTime <= data.dueDate;
       
-      updatedCount++;
+      // Only mark as completed if within assignment window
+      const shouldComplete = isWithinWindow;
+      
+      if (shouldComplete) {
+        await prisma.submission.update({
+          where: { id: data.submissionId },
+          data: {
+            completed: true,
+            submissionTime
+          }
+        });
+        
+        updatedCount++;
+        console.log(`✅ LeetCode: Marked ${slug} as completed (submitted: ${submissionTime.toISOString()}, window: ${data.assignDate?.toISOString() || 'N/A'} to ${data.dueDate?.toISOString() || 'N/A'})`);
+      } else {
+        // Update submission time but don't mark as completed (submitted before assignment started)
+        await prisma.submission.update({
+          where: { id: data.submissionId },
+          data: {
+            completed: false,
+            submissionTime
+          }
+        });
+        console.log(`⏰ LeetCode: ${slug} submitted before assignment window (submitted: ${submissionTime.toISOString()}, start: ${data.assignDate?.toISOString() || 'N/A'})`);
+      }
     }
   }
 
@@ -412,7 +443,7 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
   // 2. Get all students assigned to this assignment
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    select: { classId: true },
+    select: { classId: true, assignDate: true, dueDate: true },
   });
 
   if (!assignment) {
@@ -466,11 +497,14 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
       for (const sub of relevantSubmissions) {
         const problem = leetcodeProblems.find(p => extractLeetCodeSlug(p.url) === sub.titleSlug);
         if (problem) {
+          const submissionTime = safeDateFromTimestamp(sub.timestamp);
+          const isWithinWindow = !assignment.assignDate || submissionTime >= assignment.assignDate;
+          
           submissionsToUpdate.push({
             userId: user.id,
             problemId: problem.id,
-            completed: true,
-            submissionTime: safeDateFromTimestamp(sub.timestamp),
+            completed: isWithinWindow, // Only mark as completed if within assignment window
+            submissionTime: submissionTime,
           });
         }
       }
@@ -482,10 +516,9 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
             where: {
               userId: subData.userId,
               problemId: subData.problemId,
-              completed: false, // Only update if not already completed
             },
             data: {
-              completed: true,
+              completed: subData.completed,
               submissionTime: subData.submissionTime,
             },
           })

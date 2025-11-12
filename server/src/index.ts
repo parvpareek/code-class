@@ -34,11 +34,11 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   
   // Log everything for debugging
-  console.log(`=== REQUEST START ===`);
-  console.log(`${req.method} ${req.path}`);
-  console.log(`Origin: ${origin || 'none'}`);
-  console.log(`User-Agent: ${req.headers['user-agent'] || 'none'}`);
-  console.log(`All headers:`, JSON.stringify(req.headers, null, 2));
+  // console.log(`=== REQUEST START ===`);
+  // console.log(`${req.method} ${req.path}`);
+  // console.log(`Origin: ${origin || 'none'}`);
+  // console.log(`User-Agent: ${req.headers['user-agent'] || 'none'}`);
+  // console.log(`All headers:`, JSON.stringify(req.headers, null, 2));
   
   // Set CORS headers for ALL requests
   if (origin) {
@@ -50,16 +50,12 @@ app.use((req, res, next) => {
   
   // Handle preflight requests immediately
   if (req.method === 'OPTIONS') {
-    console.log(`=== HANDLING OPTIONS PREFLIGHT ===`);
-    console.log(`Path: ${req.path}`);
-    console.log(`Setting CORS headers and ending preflight`);
     
     // Set status and end response
     res.status(200).end();
     return;
   }
   
-  console.log(`=== REQUEST CONTINUING ===`);
   next();
 });
 

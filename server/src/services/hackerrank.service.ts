@@ -223,12 +223,21 @@ const processHackerRankSubmissions = async (
       userId: user.id,
     },
     include: {
-      problem: true
+      problem: {
+        include: {
+          assignment: true
+        }
+      }
     }
   });
 
   // Create a map of problem slugs to problems for HackerRank problems only
-  const problemSlugMap = new Map<string, { problemId: string; submissionId: string }>();
+  const problemSlugMap = new Map<string, { 
+    problemId: string; 
+    submissionId: string;
+    assignDate: Date | null;
+    dueDate: Date | null;
+  }>();
   
   userProblems.forEach(submission => {
     if (submission.problem.platform.toLowerCase() === 'hackerrank') {
@@ -236,7 +245,9 @@ const processHackerRankSubmissions = async (
       if (slug) {
         problemSlugMap.set(slug, {
           problemId: submission.problem.id,
-          submissionId: submission.id
+          submissionId: submission.id,
+          assignDate: submission.problem.assignment?.assignDate || null,
+          dueDate: submission.problem.assignment?.dueDate || null
         });
         console.log(`🔍 Problem mapped: ${submission.problem.title} -> slug: ${slug}`);
       }
@@ -277,19 +288,39 @@ const processHackerRankSubmissions = async (
     if (matchingSubmission) {
       const submissionTime = safeDateFromHackerRank(matchingSubmission.created_at);
       
-      await prisma.submission.update({
-        where: { id: data.submissionId },
-        data: {
-          completed: true,
-          submissionTime,
-          updatedAt: new Date() // Track when we updated this submission
-        }
-      });
+      // Check if submission is within assignment window
+      const isWithinWindow = !data.assignDate || submissionTime >= data.assignDate;
+      const isBeforeDueDate = !data.dueDate || submissionTime <= data.dueDate;
       
-      updatedCount++;
-      console.log(`🔶 HackerRank: Marked ${slug} as completed for ${user.hackerrankUsername}`);
-      console.log(`   Matched via: ${matchingSubmission.challenge_slug ? 'slug' : 'normalized name'} (${matchingSubmission.challenge_name})`);
-      console.log(`   Submission time: ${submissionTime.toISOString()} (processed at: ${new Date().toISOString()})`);
+      // Only mark as completed if within assignment window
+      const shouldComplete = isWithinWindow;
+      
+      if (shouldComplete) {
+        await prisma.submission.update({
+          where: { id: data.submissionId },
+          data: {
+            completed: true,
+            submissionTime,
+            updatedAt: new Date() // Track when we updated this submission
+          }
+        });
+        
+        updatedCount++;
+        console.log(`🔶 HackerRank: Marked ${slug} as completed for ${user.hackerrankUsername}`);
+        console.log(`   Matched via: ${matchingSubmission.challenge_slug ? 'slug' : 'normalized name'} (${matchingSubmission.challenge_name})`);
+        console.log(`   Submission time: ${submissionTime.toISOString()} (window: ${data.assignDate?.toISOString() || 'N/A'} to ${data.dueDate?.toISOString() || 'N/A'})`);
+      } else {
+        // Update submission time but don't mark as completed (submitted before assignment started)
+        await prisma.submission.update({
+          where: { id: data.submissionId },
+          data: {
+            completed: false,
+            submissionTime,
+            updatedAt: new Date()
+          }
+        });
+        console.log(`⏰ HackerRank: ${slug} submitted before assignment window (submitted: ${submissionTime.toISOString()}, start: ${data.assignDate?.toISOString() || 'N/A'})`);
+      }
     } else {
       console.log(`🔶 HackerRank: No submission found for ${slug} by ${user.hackerrankUsername}`);
     }
@@ -410,7 +441,7 @@ export const forceCheckHackerRankSubmissionsForAssignment = async (
   // 2. Get all students assigned to this assignment
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    select: { classId: true },
+    select: { classId: true, assignDate: true, dueDate: true },
   });
 
   if (!assignment) {
@@ -454,12 +485,14 @@ export const forceCheckHackerRankSubmissionsForAssignment = async (
         if (problemSlugMap.has(submissionSlug)) {
           const problemId = problemSlugMap.get(submissionSlug)!;
           const submissionTime = safeDateFromHackerRank(sub.created_at);
+          const isWithinWindow = !assignment.assignDate || submissionTime >= assignment.assignDate;
+          
           console.log(`🔍 HackerRank: Found matching submission for ${sub.challenge_name} (${submissionSlug})`);
           console.log(`   Original created_at: ${sub.created_at}, Parsed time: ${submissionTime.toISOString()}`);
           submissionsToUpdate.push({
             userId: user.id,
             problemId: problemId,
-            completed: true,
+            completed: isWithinWindow, // Only mark as completed if within assignment window
             submissionTime: submissionTime,
           });
         }
