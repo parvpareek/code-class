@@ -150,12 +150,22 @@ const SubmissionStatusGrid: React.FC<SubmissionStatusGridProps> = ({ assignment,
     }
     
     const submission = problem.submissions.find(s => s?.userId === studentId);
+    
+    // Fallback calculation for isLate if not provided by backend
+    let isLate = submission?.isLate;
+    if (isLate === undefined && submission?.submissionTime && assignment?.dueDate && assignment?.assignDate) {
+      // Calculate end of day for due date (23:59:59.999) in UTC
+      const dueDateEndOfDay = new Date(assignment.dueDate);
+      dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+      
+      isLate = new Date(submission.submissionTime).getTime() > dueDateEndOfDay.getTime() && 
+               new Date(submission.submissionTime).getTime() >= new Date(assignment.assignDate).getTime();
+    }
+    
     return {
       completed: submission?.completed || false,
       submissionTime: submission?.submissionTime,
-      isLate: submission?.isLate ?? (submission?.submissionTime && assignment?.dueDate && assignment?.assignDate ? 
-      (new Date(submission.submissionTime).getTime() > new Date(assignment.dueDate!).getTime() && 
-       new Date(submission.submissionTime).getTime() >= new Date(assignment.assignDate!).getTime()) : false)
+      isLate: isLate ?? false
     };
   };
 
