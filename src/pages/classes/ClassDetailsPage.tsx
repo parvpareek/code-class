@@ -83,7 +83,15 @@ const ClassDetailsPage: React.FC = () => {
               details.problems.forEach((p: any) => {
                 if (Array.isArray(p.submissions)) {
                   p.submissions.forEach((s: any) => {
-                    if (s?.completed && (s?.isLate || (s?.submissionTime && details?.dueDate && new Date(s.submissionTime).getTime() > new Date(details.dueDate).getTime()))) {
+                    // Check if submission is late (with proper end-of-day calculation in UTC)
+                    let isLate = s?.isLate;
+                    if (isLate === undefined && s?.submissionTime && details?.dueDate) {
+                      const dueDateEndOfDay = new Date(details.dueDate);
+                      dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+                      isLate = new Date(s.submissionTime).getTime() > dueDateEndOfDay.getTime();
+                    }
+                    
+                    if (s?.completed && isLate) {
                       counts[s.userId] = (counts[s.userId] || 0) + 1;
                     }
                   });

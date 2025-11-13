@@ -257,9 +257,9 @@ export const getAssignmentById = async (
         submissions: allSubmissions
           .filter((s) => s.problemId === problem.id)
           .map((s) => {
-            // Calculate end of day for due date (23:59:59.999)
+            // Calculate end of day for due date (23:59:59.999) in UTC
             const dueDateEndOfDay = new Date(assignment.dueDate);
-            dueDateEndOfDay.setHours(23, 59, 59, 999);
+            dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
             
             return {
               ...s,
@@ -653,7 +653,7 @@ export const updateAssignment = async (
   res: Response
 ): Promise<void> => {
   const { assignmentId } = req.params;
-  const { title, description, dueDate, problems } = req.body;
+  const { title, description, assignDate, dueDate, problems } = req.body;
   // @ts-expect-error: req.user is added by the protect middleware
   const { id: userId } = req.user;
 
@@ -676,6 +676,7 @@ export const updateAssignment = async (
         data: {
           title,
           description,
+          assignDate: assignDate ? new Date(assignDate) : undefined,
           dueDate: new Date(dueDate),
         },
       });
@@ -899,9 +900,9 @@ export const getMyAssignments = async (
       const now = new Date();
       const dueDate = new Date(assignment.dueDate);
       
-      // Calculate end of day for due date (23:59:59.999)
+      // Calculate end of day for due date (23:59:59.999) in UTC
       const dueDateEndOfDay = new Date(dueDate);
-      dueDateEndOfDay.setHours(23, 59, 59, 999);
+      dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
 
       let status: "completed" | "pending" | "overdue";
       if (completedCount === totalProblems) {
