@@ -290,10 +290,17 @@ const processHackerRankSubmissions = async (
       
       // Check if submission is within assignment window
       const isWithinWindow = !data.assignDate || submissionTime >= data.assignDate;
-      const isBeforeDueDate = !data.dueDate || submissionTime <= data.dueDate;
       
-      // Only mark as completed if within assignment window
-      const shouldComplete = isWithinWindow;
+      // Check if submission is before due date (end of day)
+      let isBeforeDueDate = true;
+      if (data.dueDate) {
+        const dueDateEndOfDay = new Date(data.dueDate);
+        dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+        isBeforeDueDate = submissionTime <= dueDateEndOfDay;
+      }
+      
+      // Only mark as completed if within assignment window AND before due date
+      const shouldComplete = isWithinWindow && isBeforeDueDate;
       
       if (shouldComplete) {
         await prisma.submission.update({
@@ -487,12 +494,20 @@ export const forceCheckHackerRankSubmissionsForAssignment = async (
           const submissionTime = safeDateFromHackerRank(sub.created_at);
           const isWithinWindow = !assignment.assignDate || submissionTime >= assignment.assignDate;
           
+          // Check if submission is before due date (end of day)
+          let isBeforeDueDate = true;
+          if (assignment.dueDate) {
+            const dueDateEndOfDay = new Date(assignment.dueDate);
+            dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+            isBeforeDueDate = submissionTime <= dueDateEndOfDay;
+          }
+          
           console.log(`🔍 HackerRank: Found matching submission for ${sub.challenge_name} (${submissionSlug})`);
           console.log(`   Original created_at: ${sub.created_at}, Parsed time: ${submissionTime.toISOString()}`);
           submissionsToUpdate.push({
             userId: user.id,
             problemId: problemId,
-            completed: isWithinWindow, // Only mark as completed if within assignment window
+            completed: isWithinWindow && isBeforeDueDate, // Only mark as completed if within assignment window AND before due date
             submissionTime: submissionTime,
           });
         }

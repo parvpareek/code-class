@@ -356,10 +356,17 @@ const processLeetCodeSubmissions = async (
       
       // Check if submission is within assignment window
       const isWithinWindow = !data.assignDate || submissionTime >= data.assignDate;
-      const isBeforeDueDate = !data.dueDate || submissionTime <= data.dueDate;
       
-      // Only mark as completed if within assignment window
-      const shouldComplete = isWithinWindow;
+      // Check if submission is before due date (end of day)
+      let isBeforeDueDate = true;
+      if (data.dueDate) {
+        const dueDateEndOfDay = new Date(data.dueDate);
+        dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+        isBeforeDueDate = submissionTime <= dueDateEndOfDay;
+      }
+      
+      // Only mark as completed if within assignment window AND before due date
+      const shouldComplete = isWithinWindow && isBeforeDueDate;
       
       if (shouldComplete) {
         await prisma.submission.update({
@@ -492,25 +499,88 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
 
       console.log(`Found ${relevantSubmissions.length} relevant submissions for ${user.name}.`);
 
+      // First, check what submission records exist in the database for this user
+      const existingSubmissions = await prisma.submission.findMany({
+        where: {
+          userId: user.id,
+          problemId: { in: leetcodeProblems.map(p => p.id) }
+        },
+        select: {
+          id: true,
+          userId: true,
+          problemId: true,
+          completed: true,
+          submissionTime: true,
+          problem: {
+            select: {
+              url: true
+            }
+          }
+        }
+      });
+      
+      console.log(`📊 Found ${existingSubmissions.length} existing submission records in database for user ${user.name}`);
+      existingSubmissions.forEach((sub, idx) => {
+        console.log(`   ${idx + 1}. ID: ${sub.id}, problemId: ${sub.problemId}, completed: ${sub.completed}, URL: ${sub.problem.url}`);
+      });
+      
       // Find the corresponding DB problem for each submission
-      const submissionsToUpdate = [];
+      // Group submissions by problem and keep only the most recent one
+      type SubmissionData = { sub: LeetCodeSubmission, problem: typeof leetcodeProblems[0], submissionTime: Date };
+      const submissionsByProblem = new Map<string, SubmissionData>();
+      
       for (const sub of relevantSubmissions) {
         const problem = leetcodeProblems.find(p => extractLeetCodeSlug(p.url) === sub.titleSlug);
         if (problem) {
           const submissionTime = safeDateFromTimestamp(sub.timestamp);
-          const isWithinWindow = !assignment.assignDate || submissionTime >= assignment.assignDate;
           
-          submissionsToUpdate.push({
-            userId: user.id,
-            problemId: problem.id,
-            completed: isWithinWindow, // Only mark as completed if within assignment window
-            submissionTime: submissionTime,
-          });
+          // If we haven't seen this problem yet, or this submission is more recent, keep it
+          const existing = submissionsByProblem.get(problem.id);
+          if (!existing || submissionTime > existing.submissionTime) {
+            submissionsByProblem.set(problem.id, { sub, problem, submissionTime });
+          }
         }
+      }
+      
+      console.log(`📌 Processing ${submissionsByProblem.size} unique problems (filtered from ${relevantSubmissions.length} submissions)`);
+      
+      const submissionsToUpdate = [];
+      for (const [problemId, { sub, problem, submissionTime }] of submissionsByProblem) {
+        const isWithinWindow = !assignment.assignDate || submissionTime >= assignment.assignDate;
+        
+        // Check if submission is before due date (end of day)
+        let isBeforeDueDate = true;
+        if (assignment.dueDate) {
+          const dueDateEndOfDay = new Date(assignment.dueDate);
+          dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+          isBeforeDueDate = submissionTime <= dueDateEndOfDay;
+        }
+        
+        const completed = isWithinWindow && isBeforeDueDate;
+        
+        console.log(`🔍 Submission validation for ${sub.titleSlug}:`);
+        console.log(`   - Submission time: ${submissionTime.toISOString()}`);
+        console.log(`   - Assignment start: ${assignment.assignDate?.toISOString() || 'N/A'}`);
+        console.log(`   - Due date (EOD): ${assignment.dueDate ? new Date(new Date(assignment.dueDate).setUTCHours(23, 59, 59, 999)).toISOString() : 'N/A'}`);
+        console.log(`   - isWithinWindow: ${isWithinWindow}`);
+        console.log(`   - isBeforeDueDate: ${isBeforeDueDate}`);
+        console.log(`   - COMPLETED: ${completed}`);
+        
+        submissionsToUpdate.push({
+          userId: user.id,
+          problemId: problem.id,
+          completed: completed, // Only mark as completed if within assignment window AND before due date
+          submissionTime: submissionTime,
+        });
       }
 
       // 4. Update the database
       if (submissionsToUpdate.length > 0) {
+        console.log(`📝 About to update ${submissionsToUpdate.length} submissions in database:`);
+        submissionsToUpdate.forEach((sub, idx) => {
+          console.log(`   ${idx + 1}. userId: ${sub.userId}, problemId: ${sub.problemId}, completed: ${sub.completed}`);
+        });
+        
         const updatePromises = submissionsToUpdate.map(subData =>
           prisma.submission.updateMany({
             where: {
@@ -527,10 +597,14 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
         const results = await prisma.$transaction(updatePromises);
         const userUpdatedCount = results.reduce((sum, result) => sum + result.count, 0);
 
+        console.log(`💾 Database update results:`, results.map((r, idx) => `Record ${idx + 1}: ${r.count} rows updated`));
+        
         totalUpdatedCount += userUpdatedCount;
 
         if (userUpdatedCount > 0) {
-          console.log(`Updated ${userUpdatedCount} LeetCode submissions for ${user.name}.`);
+          console.log(`✅ Updated ${userUpdatedCount} LeetCode submissions for ${user.name}.`);
+        } else {
+          console.log(`⚠️ WARNING: 0 rows were updated in database despite having ${submissionsToUpdate.length} submissions to update!`);
         }
       }
     } catch (error: unknown) {
