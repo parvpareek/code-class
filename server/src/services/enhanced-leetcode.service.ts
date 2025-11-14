@@ -496,7 +496,7 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
       console.log(`Found ${relevantSubmissions.length} relevant submissions for ${user.name}.`);
 
       // Find the corresponding DB problem for each submission
-      // Group submissions by problem and keep only the most recent one
+      // Group submissions by problem and keep only the BEST one (prioritize on-time over late)
       type SubmissionData = { sub: LeetCodeSubmission, problem: typeof leetcodeProblems[0], submissionTime: Date };
       const submissionsByProblem = new Map<string, SubmissionData>();
       
@@ -505,10 +505,38 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
         if (problem) {
           const submissionTime = safeDateFromTimestamp(sub.timestamp);
           
-          // If we haven't seen this problem yet, or this submission is more recent, keep it
+          // Keep the BEST submission: prioritize on-time, then earliest
           const existing = submissionsByProblem.get(problem.id);
-          if (!existing || submissionTime > existing.submissionTime) {
+          if (!existing) {
+            // No existing submission, add this one
             submissionsByProblem.set(problem.id, { sub, problem, submissionTime });
+          } else {
+            // Determine which submission is "better"
+            const existingTime = existing.submissionTime;
+            const dueDateEndOfDay = assignment.dueDate ? new Date(new Date(assignment.dueDate).setUTCHours(23, 59, 59, 999)) : null;
+            
+            const existingIsOnTime = !assignment.assignDate || (
+              existingTime >= assignment.assignDate &&
+              (!dueDateEndOfDay || existingTime <= dueDateEndOfDay)
+            );
+            
+            const newIsOnTime = !assignment.assignDate || (
+              submissionTime >= assignment.assignDate &&
+              (!dueDateEndOfDay || submissionTime <= dueDateEndOfDay)
+            );
+            
+            // Replace if: new is on-time and old is not, OR both same status and new is earlier
+            const shouldReplace = 
+              (newIsOnTime && !existingIsOnTime) || // New is on-time, old is late/before
+              (newIsOnTime === existingIsOnTime && submissionTime < existingTime); // Same status, prefer earlier
+            
+            if (shouldReplace) {
+              const reason = newIsOnTime && !existingIsOnTime 
+                ? 'new is on-time, old is not' 
+                : 'same status, new is earlier';
+              console.log(`   🔄 Replacing submission for ${sub.titleSlug} (${reason})`);
+              submissionsByProblem.set(problem.id, { sub, problem, submissionTime });
+            }
           }
         }
       }
