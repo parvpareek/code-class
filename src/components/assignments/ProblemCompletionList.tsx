@@ -9,22 +9,45 @@ interface ProblemCompletionListProps {
   problems: ProblemWithUserSubmission[];
   isTeacher?: boolean;
   dueDate?: string;
+  assignDate?: string;
 }
 
-const ProblemCompletionList: React.FC<ProblemCompletionListProps> = ({ problems, isTeacher = false, dueDate }) => {
+const ProblemCompletionList: React.FC<ProblemCompletionListProps> = ({ problems, isTeacher = false, dueDate, assignDate }) => {
   return (
     <div className="space-y-3">
       {problems.map((problem, index) => {
         const isAutoCompleted = problem.completed;
-        const isLate = Boolean(
-          isAutoCompleted && problem.submissionTime && dueDate &&
-          new Date(problem.submissionTime).getTime() > new Date(dueDate).getTime()
-        );
+        
+        // Determine submission status
+        let submissionStatus: 'on-time' | 'late' | 'before' = 'on-time';
+        if (isAutoCompleted && problem.submissionTime) {
+          const submissionTime = new Date(problem.submissionTime);
+          
+          // Check if submitted before assignment was created
+          if (assignDate && submissionTime < new Date(assignDate)) {
+            submissionStatus = 'before';
+          } 
+          // Check if submitted after due date
+          else if (dueDate) {
+            const dueDateEndOfDay = new Date(dueDate);
+            dueDateEndOfDay.setHours(23, 59, 59, 999);
+            if (submissionTime > dueDateEndOfDay) {
+              submissionStatus = 'late';
+            }
+          }
+        }
+        
+        const isLate = submissionStatus === 'late';
+        const isBeforeAssignment = submissionStatus === 'before';
         
         return (
         <Card key={problem.id} className={`border transition-all duration-200 ${
           isAutoCompleted 
-                ? 'border-green-200 bg-green-50/50 hover:bg-green-50 dark:border-green-700 dark:bg-green-900/20 dark:hover:bg-green-900/30' 
+            ? isLate 
+              ? 'border-yellow-200 bg-yellow-50/50 hover:bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30'
+              : isBeforeAssignment
+              ? 'border-blue-200 bg-blue-50/50 hover:bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20 dark:hover:bg-blue-900/30'
+              : 'border-green-200 bg-green-50/50 hover:bg-green-50 dark:border-green-700 dark:bg-green-900/20 dark:hover:bg-green-900/30' 
             : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
         }`}>
           <CardContent className="p-4">
@@ -33,7 +56,11 @@ const ProblemCompletionList: React.FC<ProblemCompletionListProps> = ({ problems,
                 {/* Completion Status Icon */}
                 <div className="flex-shrink-0">
                   {isAutoCompleted ? (
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${isLate ? 'bg-yellow-600' : 'bg-green-500'}`}>
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                      isLate ? 'bg-yellow-600' : 
+                      isBeforeAssignment ? 'bg-blue-500' : 
+                      'bg-green-500'
+                    }`}>
                       <CheckCircle2 className="h-5 w-5 text-white" />
                     </div>
                   ) : (
@@ -50,8 +77,14 @@ const ProblemCompletionList: React.FC<ProblemCompletionListProps> = ({ problems,
                       Problem #{index + 1}
                     </span>
                     {isAutoCompleted && (
-                      <Badge className={`${isLate ? 'bg-yellow-600' : 'bg-green-500'} text-xs`}>
-                        {isLate ? 'Late' : 'Auto-Completed'}
+                      <Badge className={`${
+                        isLate ? 'bg-yellow-600' : 
+                        isBeforeAssignment ? 'bg-blue-500' : 
+                        'bg-green-500'
+                      } text-xs text-white`}>
+                        {isLate ? 'Late Submission' : 
+                         isBeforeAssignment ? 'Before Assignment' : 
+                         'Auto-Completed'}
                       </Badge>
                     )}
                   </div>
@@ -76,10 +109,16 @@ const ProblemCompletionList: React.FC<ProblemCompletionListProps> = ({ problems,
                     </Badge>
                     
                     {isAutoCompleted && problem.submissionTime && (
-                      <div className={`flex items-center gap-1 text-xs ${isLate ? 'text-yellow-700 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                      <div className={`flex items-center gap-1 text-xs ${
+                        isLate ? 'text-yellow-700 dark:text-yellow-400' : 
+                        isBeforeAssignment ? 'text-blue-600 dark:text-blue-400' : 
+                        'text-green-600 dark:text-green-400'
+                      }`}>
                         <Calendar className="h-3 w-3" />
                         <span>
-                          {isLate ? 'Submitted' : 'Auto-completed'} {new Date(problem.submissionTime).toLocaleDateString()}
+                          {isLate ? 'Late submission' : 
+                           isBeforeAssignment ? 'Completed before assignment' : 
+                           'Auto-completed'} {new Date(problem.submissionTime).toLocaleDateString()}
                         </span>
                       </div>
                     )}

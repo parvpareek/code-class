@@ -214,7 +214,11 @@ const AssignmentDetailsPage: React.FC = () => {
 
                 {/* Problems List */}
                 <h3 className="font-semibold mb-4">Problems</h3>
-                <ProblemCompletionList problems={studentProblems} dueDate={assignment.dueDate} />
+                <ProblemCompletionList 
+                  problems={studentProblems} 
+                  dueDate={assignment.dueDate}
+                  assignDate={assignment.assignDate}
+                />
               </>
             )}
           </div>

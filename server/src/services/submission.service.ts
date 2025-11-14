@@ -145,38 +145,32 @@ const processGfgSubmissions = async (
                 const assignDate = problem.assignment?.assignDate;
                 const dueDate = problem.assignment?.dueDate;
                 
-                // Check if submission is within assignment window
-                // For GFG, we use current time as submissionTime since we don't have actual submission timestamp
-                const isWithinWindow = !assignDate || currentTime >= assignDate;
+                // Check if submission is before assignment start date
+                const isBeforeAssignment = assignDate && currentTime < assignDate;
                 
-                // Check if submission is before due date (end of day)
-                let isBeforeDueDate = true;
+                // Check if submission is after due date
+                let isAfterDueDate = false;
                 if (dueDate) {
                   const dueDateEndOfDay = new Date(dueDate);
                   dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
-                  isBeforeDueDate = currentTime <= dueDateEndOfDay;
+                  isAfterDueDate = currentTime > dueDateEndOfDay;
                 }
                 
-                if (isWithinWindow && isBeforeDueDate) {
-                    console.log(`✅ Marking GFG submission as completed for ${user.name} on ${problem.title}`);
-                    const result = await prisma.submission.updateMany({
-                        where: { id: submission.id, completed: false },
-                        data: { completed: true, submissionTime: currentTime },
-                    });
-                    if (result.count > 0) {
-                      updatedCount++;
-                    }
-                } else {
-                    if (!isWithinWindow) {
-                      console.log(`⏰ GFG: ${problem.title} solved but before assignment window (start: ${assignDate?.toISOString() || 'N/A'})`);
-                    } else {
-                      console.log(`⏰ GFG: ${problem.title} solved but after due date (due: ${dueDate?.toISOString() || 'N/A'})`);
-                    }
-                    // Don't mark as completed if outside assignment window
-                    const result = await prisma.submission.updateMany({
-                        where: { id: submission.id },
-                        data: { completed: false, submissionTime: currentTime },
-                    });
+                // Accept ALL submissions (problem is solved = completed)
+                let status = 'ON TIME';
+                if (isBeforeAssignment) {
+                    status = 'BEFORE ASSIGNMENT';
+                } else if (isAfterDueDate) {
+                    status = 'LATE';
+                }
+                
+                console.log(`✅ Marking GFG submission as completed [${status}] for ${user.name} on ${problem.title}`);
+                const result = await prisma.submission.updateMany({
+                    where: { id: submission.id, completed: false },
+                    data: { completed: true, submissionTime: currentTime },
+                });
+                if (result.count > 0) {
+                  updatedCount++;
                 }
             } else {
                 console.log(`❌ GFG problem '${problem.title}' not found in solved list`);
