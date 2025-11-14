@@ -481,7 +481,7 @@ export const forceCheckHackerRankSubmissionsForAssignment = async (
     try {
       const recentSubmissions = await fetchHackerRankSubmissions(user.hackerrankCookie, 200);
 
-      // Group submissions by problem and keep only the most recent one
+      // Group submissions by problem and keep only the BEST one (prioritize on-time over late)
       const submissionsByProblem = new Map<string, { sub: typeof recentSubmissions[0], submissionTime: Date }>();
       
       for (const sub of recentSubmissions) {
@@ -490,10 +490,34 @@ export const forceCheckHackerRankSubmissionsForAssignment = async (
           const problemId = problemSlugMap.get(submissionSlug)!;
           const submissionTime = safeDateFromHackerRank(sub.created_at);
           
-          // If we haven't seen this problem yet, or this submission is more recent, keep it
+          // Keep the BEST submission: prioritize on-time, then earliest
           const existing = submissionsByProblem.get(problemId);
-          if (!existing || submissionTime > existing.submissionTime) {
+          if (!existing) {
+            // No existing submission, add this one
             submissionsByProblem.set(problemId, { sub, submissionTime });
+          } else {
+            // Determine which submission is "better"
+            const existingTime = existing.submissionTime;
+            const dueDateEndOfDay = assignment.dueDate ? new Date(new Date(assignment.dueDate).setUTCHours(23, 59, 59, 999)) : null;
+            
+            const existingIsOnTime = !assignment.assignDate || (
+              existingTime >= assignment.assignDate &&
+              (!dueDateEndOfDay || existingTime <= dueDateEndOfDay)
+            );
+            
+            const newIsOnTime = !assignment.assignDate || (
+              submissionTime >= assignment.assignDate &&
+              (!dueDateEndOfDay || submissionTime <= dueDateEndOfDay)
+            );
+            
+            // Replace if: new is on-time and old is not, OR both same status and new is earlier
+            const shouldReplace = 
+              (newIsOnTime && !existingIsOnTime) || // New is on-time, old is late/before
+              (newIsOnTime === existingIsOnTime && submissionTime < existingTime); // Same status, prefer earlier
+            
+            if (shouldReplace) {
+              submissionsByProblem.set(problemId, { sub, submissionTime });
+            }
           }
         }
       }
