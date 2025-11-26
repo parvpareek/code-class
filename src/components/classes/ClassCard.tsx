@@ -16,16 +16,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { MoreVertical, Users, BookOpen, Settings, Trash2, Copy, LogOut } from 'lucide-react';
+import { MoreVertical, Users, BookOpen, Settings, Trash2, Copy, LogOut, Archive } from 'lucide-react';
 import { useToast } from '../../hooks/use-toast';
 
 interface ClassCardProps {
   classData: Class;
   onDelete?: (classId: string) => void;
   onLeave?: (classId: string) => void;
+  onArchive?: (classId: string) => void;
 }
 
-const ClassCard: React.FC<ClassCardProps> = ({ classData, onDelete, onLeave }) => {
+const ClassCard: React.FC<ClassCardProps> = ({ classData, onDelete, onLeave, onArchive }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const isTeacher = user?.role === 'TEACHER';
@@ -63,6 +64,15 @@ const ClassCard: React.FC<ClassCardProps> = ({ classData, onDelete, onLeave }) =
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onArchive?.(classData.id);
+                    }}
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive Class
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     className="text-red-600"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -74,16 +84,27 @@ const ClassCard: React.FC<ClassCardProps> = ({ classData, onDelete, onLeave }) =
                   </DropdownMenuItem>
                 </>
               ) : (
-                <DropdownMenuItem
-                  className="text-red-600"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLeave?.(classData.id);
-                  }}
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Leave Class
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onArchive?.(classData.id);
+                    }}
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive Class
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-red-600"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onLeave?.(classData.id);
+                    }}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Leave Class
+                  </DropdownMenuItem>
+                </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>

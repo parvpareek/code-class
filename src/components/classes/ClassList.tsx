@@ -11,9 +11,10 @@ interface ClassListProps {
   isLoading?: boolean;
   onDelete?: (classId: string) => void;
   onLeave?: (classId: string) => void;
+  onArchive?: (classId: string) => void;
 }
 
-const ClassList: React.FC<ClassListProps> = ({ classes, isLoading, onDelete, onLeave }) => {
+const ClassList: React.FC<ClassListProps> = ({ classes, isLoading, onDelete, onLeave, onArchive }) => {
   const { user } = useAuth();
   const isTeacher = user?.role === 'TEACHER';
 
@@ -65,6 +66,7 @@ const ClassList: React.FC<ClassListProps> = ({ classes, isLoading, onDelete, onL
           classData={classItem} 
           onDelete={onDelete} 
           onLeave={onLeave}
+          onArchive={onArchive}
         />
       ))}
     </div>

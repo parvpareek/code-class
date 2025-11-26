@@ -22,6 +22,7 @@ import HomePage from "./pages/home/HomePage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import ProfilePage from "./pages/user/ProfilePage";
 import ClassesPage from "./pages/classes/ClassesPage";
+import ArchivedClassesPage from "./pages/classes/ArchivedClassesPage";
 import CreateClassPage from "./pages/classes/CreateClassPage";
 import JoinClassPage from "./pages/classes/JoinClassPage";
 import ClassDetailsPage from "./pages/classes/ClassDetailsPage";
@@ -73,6 +74,7 @@ function AppContent() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Navigate to="/classes" replace />} />
           <Route path="/classes" element={<ClassesPage />} />
+          <Route path="/classes/archived" element={<ArchivedClassesPage />} />
           <Route path="/classes/create" element={<TeacherRoute><CreateClassPage /></TeacherRoute>} />
           <Route path="/classes/:classId" element={<ClassDetailsPage />} />
           <Route path="/classes/:classId/settings" element={<TeacherRoute><ClassSettingsPage /></TeacherRoute>} />

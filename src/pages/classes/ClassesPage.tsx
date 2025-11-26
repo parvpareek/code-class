@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { getClasses, deleteClass as apiDeleteClass, leaveClass as apiLeaveClass } from '../../api/classes';
+import { getClasses, deleteClass as apiDeleteClass, leaveClass as apiLeaveClass, archiveClass as apiArchiveClass } from '../../api/classes';
 import { useAuth } from '../../context/AuthContext';
 import { Class } from '../../types';
 import ClassList from '../../components/classes/ClassList';
 import { Button } from '../../components/ui/button';
 import { Link } from 'react-router-dom';
-import { Plus, Users, BookOpen } from 'lucide-react';
+import { Plus, Users, BookOpen, Archive } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useToast } from '../../hooks/use-toast';
 import { useDataRefresh, DATA_REFRESH_EVENTS } from '../../utils/dataRefresh';
@@ -83,6 +83,24 @@ const ClassesPage: React.FC = () => {
     }
   };
 
+  const handleArchiveClass = async (classId: string) => {
+    try {
+      await apiArchiveClass(classId);
+      setClasses(classes.filter((c) => c.id !== classId));
+      toast({
+        title: 'Class Archived',
+        description: 'The class has been archived. You can view it in the archived classes section.',
+      });
+    } catch (error) {
+      console.error('Error archiving class:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to archive class. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const totalStudents = Array.isArray(classes) ? classes.reduce((acc, curr) => acc + (curr.studentCount || 0), 0) : 0;
   const totalAssignments = Array.isArray(classes) ? classes.reduce((acc, curr) => acc + (curr.assignmentCount || 0), 0) : 0;
 
@@ -101,14 +119,22 @@ const ClassesPage: React.FC = () => {
           </p>
         </div>
         
-        {isTeacher && (
-          <Button asChild>
-            <Link to="/classes/create">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Class
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link to="/classes/archived">
+              <Archive className="mr-2 h-4 w-4" />
+              Archived
             </Link>
           </Button>
-        )}
+          {isTeacher && (
+            <Button asChild>
+              <Link to="/classes/create">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Class
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Statistics Cards - only show for teachers */}
@@ -151,6 +177,7 @@ const ClassesPage: React.FC = () => {
         isLoading={isLoading} 
         onDelete={isTeacher ? handleDeleteClass : undefined}
         onLeave={!isTeacher ? handleLeaveClass : undefined}
+        onArchive={handleArchiveClass}
       />
     </div>
   );

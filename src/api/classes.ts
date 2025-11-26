@@ -26,6 +26,14 @@ export const deleteClass = async (classId: string): Promise<{ message: string }>
   return response.data;
 };
 
+export const updateClass = async (
+  classId: string,
+  data: { name: string; description?: string }
+): Promise<Class> => {
+  const response = await api.patch(`/classes/${classId}`, data);
+  return response.data;
+};
+
 export const joinClass = async (joinCode: string): Promise<{ message: string }> => {
   const response = await api.post('/classes/join', { joinCode });
   return response.data;
@@ -48,5 +56,20 @@ export const checkClassSubmissionStatus = async (classId: string) => {
 
 export const getClassJudge0Status = async (classId: string) => {
   const response = await api.get(`/classes/${classId}/judge0-status`);
+  return response.data;
+};
+
+export const archiveClass = async (classId: string): Promise<{ message: string }> => {
+  const response = await api.post(`/classes/${classId}/archive`);
+  return response.data;
+};
+
+export const unarchiveClass = async (classId: string): Promise<{ message: string }> => {
+  const response = await api.post(`/classes/${classId}/unarchive`);
+  return response.data;
+};
+
+export const getArchivedClasses = async (): Promise<{ classes: Class[] }> => {
+  const response = await api.get('/classes/archived');
   return response.data;
 };

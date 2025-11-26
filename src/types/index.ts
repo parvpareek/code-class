@@ -19,11 +19,12 @@ export interface User {
 export interface Class {
   id: string;
   name: string;
-  description: string;
+  description?: string | null;
   teacherId: string;
   teacherName: string;
   joinCode: string;
   createdAt: string;
+  updatedAt?: string;
   studentCount?: number;
   assignmentCount?: number;
   assignments?: Assignment[];

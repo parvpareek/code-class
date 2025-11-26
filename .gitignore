@@ -81,6 +81,14 @@ prisma/migrations/**/migration.sql
 *.sqlite3
 database.db
 
+apply-archive-feature.sh
+data_only.dump
+server/prisma/migrations/20251126120000_add_class_description/
+server/prisma/migrations/20251126130000_add_class_archived/
+server/supabase_backup.dump
+supabase_backup copy.dump
+
+
 # IDE and editors
 .vscode/
 !.vscode/extensions.json
