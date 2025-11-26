@@ -44,13 +44,27 @@ export const createClass = async (req: Request, res: Response): Promise<void> =>
   const teacherId = req.user.userId;
 
   try {
-    const newClass = await prisma.class.create({
-      data: {
-        name,
-        joinCode: nanoid(),
-        teacherId,
-      },
+    // Create class and add teacher to UsersOnClasses for archive tracking
+    const newClass = await prisma.$transaction(async (tx) => {
+      const classData = await tx.class.create({
+        data: {
+          name,
+          joinCode: nanoid(),
+          teacherId,
+        },
+      });
+
+      // Add teacher to UsersOnClasses for personal archive tracking
+      await tx.usersOnClasses.create({
+        data: {
+          userId: teacherId,
+          classId: classData.id,
+        },
+      });
+
+      return classData;
     });
+
     res.status(201).json(newClass);
   } catch (error) {
     res.status(500).json({ message: 'Error creating class', error });
@@ -177,32 +191,46 @@ export const getClasses = async (req: Request, res: Response): Promise<void> => 
   const { userId, role } = req.user;
 
   try {
-    const whereClause: Prisma.ClassWhereInput = role === 'TEACHER' ? { teacherId: userId } : { students: { some: { userId } } };
-
-    const classes = await prisma.class.findMany({
-      where: whereClause,
+    // Both teachers and students now use UsersOnClasses for archive tracking
+    const enrollments = await prisma.usersOnClasses.findMany({
+      where: {
+        userId,
+        archived: false,
+      },
       include: {
-        teacher: {
-          select: { name: true },
-        },
-        _count: {
-          select: {
-            students: true,
-            assignments: true,
+        class: {
+          include: {
+            teacher: {
+              select: { name: true },
+            },
+            _count: {
+              select: {
+                students: true,
+                assignments: true,
+              },
+            },
           },
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        assignedAt: 'desc',
       },
     });
 
-    const formattedClasses = (classes as ClassWithCounts[]).map(({ _count, teacher, ...rest }) => ({
-      ...rest,
-      studentCount: _count.students,
-      assignmentCount: _count.assignments,
-      teacherName: teacher.name,
-    }));
+    // For teachers, filter to only show classes they teach
+    const filteredEnrollments = role === 'TEACHER' 
+      ? enrollments.filter((enrollment: any) => enrollment.class.teacherId === userId)
+      : enrollments;
+
+    const formattedClasses = filteredEnrollments.map((enrollment: any) => {
+      const { _count, teacher, ...rest } = enrollment.class as ClassWithCounts;
+      return {
+        ...rest,
+        studentCount: _count.students,
+        assignmentCount: _count.assignments,
+        teacherName: teacher.name,
+      };
+    });
 
     res.status(200).json({ classes: formattedClasses });
   } catch (error) {
@@ -378,6 +406,58 @@ export const getClassDetails = async (req: Request, res: Response): Promise<void
   } catch (error) {
     console.error('Error fetching class details:', error);
     res.status(500).json({ message: 'Error fetching class details', error });
+  }
+};
+
+export const updateClass = async (req: Request, res: Response): Promise<void> => {
+  const { classId } = req.params;
+  const { name, description } = req.body as { name?: string; description?: string };
+  // @ts-expect-error: req.user is added by the protect middleware
+  const { userId, role } = req.user;
+
+  if (role !== 'TEACHER') {
+    res.status(403).json({ message: 'Only teachers can update classes.' });
+    return;
+  }
+
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    res.status(400).json({ message: 'Class name is required.' });
+    return;
+  }
+
+  try {
+    const classInfo = await prisma.class.findUnique({
+      where: { id: classId },
+      select: { id: true, teacherId: true },
+    });
+
+    if (!classInfo) {
+      res.status(404).json({ message: 'Class not found.' });
+      return;
+    }
+
+    if (classInfo.teacherId !== userId) {
+      res.status(403).json({ message: 'You are not authorized to update this class.' });
+      return;
+    }
+
+    const updatePayload: Prisma.ClassUpdateInput = {
+      name: name.trim(),
+    };
+
+    if (typeof description === 'string') {
+      updatePayload.description = description.trim();
+    }
+
+    const updatedClass = await prisma.class.update({
+      where: { id: classId },
+      data: updatePayload,
+    });
+
+    res.status(200).json(updatedClass);
+  } catch (error) {
+    console.error('Error updating class:', error);
+    res.status(500).json({ message: 'Error updating class', error });
   }
 };
 
@@ -604,5 +684,130 @@ export const removeStudentFromClass = async (req: Request, res: Response): Promi
   } catch (error) {
     console.error('Error removing student from class:', error);
     res.status(500).json({ message: 'Error removing student from class', error });
+  }
+};
+
+/**
+ * Archive a class - personal action for both teachers and students
+ */
+export const archiveClass = async (req: Request, res: Response): Promise<void> => {
+  const { classId } = req.params;
+  // @ts-expect-error: req.user is added by the protect middleware
+  const { userId } = req.user;
+
+  try {
+    // Check if enrollment exists
+    const enrollment = await prisma.usersOnClasses.findUnique({
+      where: {
+        userId_classId: {
+          userId,
+          classId,
+        },
+      },
+    });
+
+    if (!enrollment) {
+      res.status(404).json({ message: 'You are not enrolled in this class.' });
+      return;
+    }
+
+    // Archive the class for this user only
+    await prisma.usersOnClasses.update({
+      where: {
+        userId_classId: {
+          userId,
+          classId,
+        },
+      },
+      data: { archived: true },
+    });
+
+    res.status(200).json({ message: 'Class archived successfully' });
+  } catch (error) {
+    console.error('Error archiving class:', error);
+    res.status(500).json({ message: 'Error archiving class', error });
+  }
+};
+
+/**
+ * Unarchive a class - personal action for both teachers and students
+ */
+export const unarchiveClass = async (req: Request, res: Response): Promise<void> => {
+  const { classId } = req.params;
+  // @ts-expect-error: req.user is added by the protect middleware
+  const { userId } = req.user;
+
+  try {
+    // Unarchive the class for this user only
+    await prisma.usersOnClasses.update({
+      where: {
+        userId_classId: {
+          userId,
+          classId,
+        },
+      },
+      data: { archived: false },
+    });
+
+    res.status(200).json({ message: 'Class unarchived successfully' });
+  } catch (error) {
+    console.error('Error unarchiving class:', error);
+    res.status(500).json({ message: 'Error unarchiving class', error });
+  }
+};
+
+/**
+ * Get archived classes - works same for both teachers and students
+ */
+export const getArchivedClasses = async (req: Request, res: Response): Promise<void> => {
+  // @ts-expect-error: req.user is added by the protect middleware
+  const { userId, role } = req.user;
+
+  try {
+    // Get all classes this user has archived
+    const enrollments = await prisma.usersOnClasses.findMany({
+      where: {
+        userId,
+        archived: true,
+      },
+      include: {
+        class: {
+          include: {
+            teacher: {
+              select: { name: true },
+            },
+            _count: {
+              select: {
+                students: true,
+                assignments: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        assignedAt: 'desc',
+      },
+    });
+
+    // For teachers, filter to only show classes they teach
+    const filteredEnrollments = role === 'TEACHER' 
+      ? enrollments.filter((enrollment: any) => enrollment.class.teacherId === userId)
+      : enrollments;
+
+    const formattedClasses = filteredEnrollments.map((enrollment: any) => {
+      const { _count, teacher, ...rest } = enrollment.class as ClassWithCounts;
+      return {
+        ...rest,
+        studentCount: _count.students,
+        assignmentCount: _count.assignments,
+        teacherName: teacher.name,
+      };
+    });
+
+    res.status(200).json({ classes: formattedClasses });
+  } catch (error) {
+    console.error('Error fetching archived classes:', error);
+    res.status(500).json({ message: 'Error fetching archived classes', error });
   }
 };

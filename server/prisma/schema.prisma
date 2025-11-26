@@ -54,6 +54,7 @@ model User {
 model Class {
   id            String           @id @default(cuid())
   name          String
+  description   String?
   joinCode      String           @unique
   teacherId     String
   createdAt     DateTime         @default(now())
@@ -69,6 +70,7 @@ model UsersOnClasses {
   userId     String
   classId    String
   assignedAt DateTime @default(now())
+  archived   Boolean  @default(false)
   class      Class    @relation(fields: [classId], references: [id])
   user       User     @relation(fields: [userId], references: [id])
 
