@@ -354,12 +354,19 @@ const processLeetCodeSubmissions = async (
         ? safeDateFromTimestamp(submission.timestamp)
         : new Date();
       
-      // Check if submission is within assignment window
-      const isWithinWindow = !data.assignDate || submissionTime >= data.assignDate;
-      const isBeforeDueDate = !data.dueDate || submissionTime <= data.dueDate;
+      // Check if submission is before assignment start date
+      const isBeforeAssignment = data.assignDate && submissionTime < data.assignDate;
       
-      // Only mark as completed if within assignment window
-      const shouldComplete = isWithinWindow;
+      // Check if submission is after due date
+      let isAfterDueDate = false;
+      if (data.dueDate) {
+        const dueDateEndOfDay = new Date(data.dueDate);
+        dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+        isAfterDueDate = submissionTime > dueDateEndOfDay;
+      }
+      
+      // Accept ALL submissions (problem is solved = completed)
+      const shouldComplete = true;
       
       if (shouldComplete) {
         await prisma.submission.update({
@@ -371,17 +378,13 @@ const processLeetCodeSubmissions = async (
         });
         
         updatedCount++;
-        console.log(`✅ LeetCode: Marked ${slug} as completed (submitted: ${submissionTime.toISOString()}, window: ${data.assignDate?.toISOString() || 'N/A'} to ${data.dueDate?.toISOString() || 'N/A'})`);
-      } else {
-        // Update submission time but don't mark as completed (submitted before assignment started)
-        await prisma.submission.update({
-          where: { id: data.submissionId },
-          data: {
-            completed: false,
-            submissionTime
-          }
-        });
-        console.log(`⏰ LeetCode: ${slug} submitted before assignment window (submitted: ${submissionTime.toISOString()}, start: ${data.assignDate?.toISOString() || 'N/A'})`);
+        let status = 'ON TIME';
+        if (isBeforeAssignment) {
+          status = 'BEFORE ASSIGNMENT';
+        } else if (isAfterDueDate) {
+          status = 'LATE';
+        }
+        console.log(`✅ LeetCode: Marked ${slug} as completed [${status}] (submitted: ${submissionTime.toISOString()}, window: ${data.assignDate?.toISOString() || 'N/A'} to ${data.dueDate?.toISOString() || 'N/A'})`);
       }
     }
   }
@@ -493,20 +496,90 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
       console.log(`Found ${relevantSubmissions.length} relevant submissions for ${user.name}.`);
 
       // Find the corresponding DB problem for each submission
-      const submissionsToUpdate = [];
+      // Group submissions by problem and keep only the BEST one (prioritize on-time over late)
+      type SubmissionData = { sub: LeetCodeSubmission, problem: typeof leetcodeProblems[0], submissionTime: Date };
+      const submissionsByProblem = new Map<string, SubmissionData>();
+      
       for (const sub of relevantSubmissions) {
         const problem = leetcodeProblems.find(p => extractLeetCodeSlug(p.url) === sub.titleSlug);
         if (problem) {
           const submissionTime = safeDateFromTimestamp(sub.timestamp);
-          const isWithinWindow = !assignment.assignDate || submissionTime >= assignment.assignDate;
           
-          submissionsToUpdate.push({
-            userId: user.id,
-            problemId: problem.id,
-            completed: isWithinWindow, // Only mark as completed if within assignment window
-            submissionTime: submissionTime,
-          });
+          // Keep the BEST submission: prioritize on-time, then earliest
+          const existing = submissionsByProblem.get(problem.id);
+          if (!existing) {
+            // No existing submission, add this one
+            submissionsByProblem.set(problem.id, { sub, problem, submissionTime });
+          } else {
+            // Determine which submission is "better"
+            const existingTime = existing.submissionTime;
+            const dueDateEndOfDay = assignment.dueDate ? new Date(new Date(assignment.dueDate).setUTCHours(23, 59, 59, 999)) : null;
+            
+            const existingIsOnTime = !assignment.assignDate || (
+              existingTime >= assignment.assignDate &&
+              (!dueDateEndOfDay || existingTime <= dueDateEndOfDay)
+            );
+            
+            const newIsOnTime = !assignment.assignDate || (
+              submissionTime >= assignment.assignDate &&
+              (!dueDateEndOfDay || submissionTime <= dueDateEndOfDay)
+            );
+            
+            // Replace if: new is on-time and old is not, OR both same status and new is earlier
+            const shouldReplace = 
+              (newIsOnTime && !existingIsOnTime) || // New is on-time, old is late/before
+              (newIsOnTime === existingIsOnTime && submissionTime < existingTime); // Same status, prefer earlier
+            
+            if (shouldReplace) {
+              const reason = newIsOnTime && !existingIsOnTime 
+                ? 'new is on-time, old is not' 
+                : 'same status, new is earlier';
+              console.log(`   🔄 Replacing submission for ${sub.titleSlug} (${reason})`);
+              submissionsByProblem.set(problem.id, { sub, problem, submissionTime });
+            }
+          }
         }
+      }
+      
+      console.log(`📌 Processing ${submissionsByProblem.size} unique problems (filtered from ${relevantSubmissions.length} submissions)`);
+      
+      const submissionsToUpdate = [];
+      for (const [problemId, { sub, problem, submissionTime }] of submissionsByProblem) {
+        // Check if submission is before assignment start date
+        const isBeforeAssignment = assignment.assignDate && submissionTime < assignment.assignDate;
+        
+        // Check if submission is after due date
+        let isAfterDueDate = false;
+        if (assignment.dueDate) {
+          const dueDateEndOfDay = new Date(assignment.dueDate);
+          dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+          isAfterDueDate = submissionTime > dueDateEndOfDay;
+        }
+        
+        // Accept ALL submissions (problem is solved = completed)
+        // Timing is only used for status display (ON TIME / LATE / BEFORE ASSIGNMENT)
+        const completed = true;
+        
+        let status = 'ON TIME';
+        if (isBeforeAssignment) {
+          status = 'BEFORE ASSIGNMENT';
+        } else if (isAfterDueDate) {
+          status = 'LATE';
+        }
+        
+        console.log(`🔍 Submission validation for ${sub.titleSlug}:`);
+        console.log(`   - Submission time: ${submissionTime.toISOString()}`);
+        console.log(`   - Assignment start: ${assignment.assignDate?.toISOString() || 'N/A'}`);
+        console.log(`   - Due date (EOD): ${assignment.dueDate ? new Date(new Date(assignment.dueDate).setUTCHours(23, 59, 59, 999)).toISOString() : 'N/A'}`);
+        console.log(`   - Status: ${status}`);
+        console.log(`   - COMPLETED: ${completed}`);
+        
+        submissionsToUpdate.push({
+          userId: user.id,
+          problemId: problem.id,
+          completed: completed, // Always mark as completed if problem is solved
+          submissionTime: submissionTime,
+        });
       }
 
       // 4. Update the database
@@ -526,11 +599,11 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
 
         const results = await prisma.$transaction(updatePromises);
         const userUpdatedCount = results.reduce((sum, result) => sum + result.count, 0);
-
+        
         totalUpdatedCount += userUpdatedCount;
 
         if (userUpdatedCount > 0) {
-          console.log(`Updated ${userUpdatedCount} LeetCode submissions for ${user.name}.`);
+          console.log(`✅ Updated ${userUpdatedCount} LeetCode submissions for ${user.name}.`);
         }
       }
     } catch (error: unknown) {

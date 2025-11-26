@@ -522,9 +522,15 @@ export const getClassAnalytics = async (req: Request, res: Response): Promise<vo
             }
           }
           
+          // Calculate end of day for due date (23:59:59.999) in UTC
+          const dueDateEndOfDay = assignment.dueDate ? new Date(assignment.dueDate) : null;
+          if (dueDateEndOfDay) {
+            dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+          }
+          
           const isLate = assignmentSubmissions.some((sub) => 
-            sub.submissionTime && assignment.dueDate && 
-            new Date(sub.submissionTime) > new Date(assignment.dueDate)
+            sub.submissionTime && dueDateEndOfDay && 
+            new Date(sub.submissionTime) > dueDateEndOfDay
           );
 
           return {

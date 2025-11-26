@@ -288,12 +288,19 @@ const processHackerRankSubmissions = async (
     if (matchingSubmission) {
       const submissionTime = safeDateFromHackerRank(matchingSubmission.created_at);
       
-      // Check if submission is within assignment window
-      const isWithinWindow = !data.assignDate || submissionTime >= data.assignDate;
-      const isBeforeDueDate = !data.dueDate || submissionTime <= data.dueDate;
+      // Check if submission is before assignment start date
+      const isBeforeAssignment = data.assignDate && submissionTime < data.assignDate;
       
-      // Only mark as completed if within assignment window
-      const shouldComplete = isWithinWindow;
+      // Check if submission is after due date
+      let isAfterDueDate = false;
+      if (data.dueDate) {
+        const dueDateEndOfDay = new Date(data.dueDate);
+        dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+        isAfterDueDate = submissionTime > dueDateEndOfDay;
+      }
+      
+      // Accept ALL submissions (problem is solved = completed)
+      const shouldComplete = true;
       
       if (shouldComplete) {
         await prisma.submission.update({
@@ -306,20 +313,15 @@ const processHackerRankSubmissions = async (
         });
         
         updatedCount++;
-        console.log(`🔶 HackerRank: Marked ${slug} as completed for ${user.hackerrankUsername}`);
+        let status = 'ON TIME';
+        if (isBeforeAssignment) {
+          status = 'BEFORE ASSIGNMENT';
+        } else if (isAfterDueDate) {
+          status = 'LATE';
+        }
+        console.log(`🔶 HackerRank: Marked ${slug} as completed [${status}] for ${user.hackerrankUsername}`);
         console.log(`   Matched via: ${matchingSubmission.challenge_slug ? 'slug' : 'normalized name'} (${matchingSubmission.challenge_name})`);
         console.log(`   Submission time: ${submissionTime.toISOString()} (window: ${data.assignDate?.toISOString() || 'N/A'} to ${data.dueDate?.toISOString() || 'N/A'})`);
-      } else {
-        // Update submission time but don't mark as completed (submitted before assignment started)
-        await prisma.submission.update({
-          where: { id: data.submissionId },
-          data: {
-            completed: false,
-            submissionTime,
-            updatedAt: new Date()
-          }
-        });
-        console.log(`⏰ HackerRank: ${slug} submitted before assignment window (submitted: ${submissionTime.toISOString()}, start: ${data.assignDate?.toISOString() || 'N/A'})`);
       }
     } else {
       console.log(`🔶 HackerRank: No submission found for ${slug} by ${user.hackerrankUsername}`);
@@ -479,23 +481,78 @@ export const forceCheckHackerRankSubmissionsForAssignment = async (
     try {
       const recentSubmissions = await fetchHackerRankSubmissions(user.hackerrankCookie, 200);
 
-      const submissionsToUpdate = [];
+      // Group submissions by problem and keep only the BEST one (prioritize on-time over late)
+      const submissionsByProblem = new Map<string, { sub: typeof recentSubmissions[0], submissionTime: Date }>();
+      
       for (const sub of recentSubmissions) {
         const submissionSlug = sub.challenge_slug || normalizeHackerRankChallengeName(sub.challenge_name);
         if (problemSlugMap.has(submissionSlug)) {
           const problemId = problemSlugMap.get(submissionSlug)!;
           const submissionTime = safeDateFromHackerRank(sub.created_at);
-          const isWithinWindow = !assignment.assignDate || submissionTime >= assignment.assignDate;
           
-          console.log(`🔍 HackerRank: Found matching submission for ${sub.challenge_name} (${submissionSlug})`);
-          console.log(`   Original created_at: ${sub.created_at}, Parsed time: ${submissionTime.toISOString()}`);
-          submissionsToUpdate.push({
-            userId: user.id,
-            problemId: problemId,
-            completed: isWithinWindow, // Only mark as completed if within assignment window
-            submissionTime: submissionTime,
-          });
+          // Keep the BEST submission: prioritize on-time, then earliest
+          const existing = submissionsByProblem.get(problemId);
+          if (!existing) {
+            // No existing submission, add this one
+            submissionsByProblem.set(problemId, { sub, submissionTime });
+          } else {
+            // Determine which submission is "better"
+            const existingTime = existing.submissionTime;
+            const dueDateEndOfDay = assignment.dueDate ? new Date(new Date(assignment.dueDate).setUTCHours(23, 59, 59, 999)) : null;
+            
+            const existingIsOnTime = !assignment.assignDate || (
+              existingTime >= assignment.assignDate &&
+              (!dueDateEndOfDay || existingTime <= dueDateEndOfDay)
+            );
+            
+            const newIsOnTime = !assignment.assignDate || (
+              submissionTime >= assignment.assignDate &&
+              (!dueDateEndOfDay || submissionTime <= dueDateEndOfDay)
+            );
+            
+            // Replace if: new is on-time and old is not, OR both same status and new is earlier
+            const shouldReplace = 
+              (newIsOnTime && !existingIsOnTime) || // New is on-time, old is late/before
+              (newIsOnTime === existingIsOnTime && submissionTime < existingTime); // Same status, prefer earlier
+            
+            if (shouldReplace) {
+              submissionsByProblem.set(problemId, { sub, submissionTime });
+            }
+          }
         }
+      }
+      
+      console.log(`📌 Processing ${submissionsByProblem.size} unique HackerRank problems (filtered from ${recentSubmissions.length} submissions)`);
+
+      const submissionsToUpdate = [];
+      for (const [problemId, { sub, submissionTime }] of submissionsByProblem) {
+        // Check if submission is before assignment start date
+        const isBeforeAssignment = assignment.assignDate && submissionTime < assignment.assignDate;
+        
+        // Check if submission is after due date
+        let isAfterDueDate = false;
+        if (assignment.dueDate) {
+          const dueDateEndOfDay = new Date(assignment.dueDate);
+          dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+          isAfterDueDate = submissionTime > dueDateEndOfDay;
+        }
+        
+        let status = 'ON TIME';
+        if (isBeforeAssignment) {
+          status = 'BEFORE ASSIGNMENT';
+        } else if (isAfterDueDate) {
+          status = 'LATE';
+        }
+        
+        const submissionSlug = sub.challenge_slug || normalizeHackerRankChallengeName(sub.challenge_name);
+        console.log(`🔍 HackerRank: Found matching submission for ${sub.challenge_name} (${submissionSlug}) [${status}]`);
+        console.log(`   Original created_at: ${sub.created_at}, Parsed time: ${submissionTime.toISOString()}`);
+        submissionsToUpdate.push({
+          userId: user.id,
+          problemId: problemId,
+          completed: true, // Always mark as completed if problem is solved
+          submissionTime: submissionTime,
+        });
       }
 
       // 4. Update the database

@@ -256,15 +256,21 @@ export const getAssignmentById = async (
         ...problem,
         submissions: allSubmissions
           .filter((s) => s.problemId === problem.id)
-          .map((s) => ({
-            ...s,
-            isLate:
-              !!s.submissionTime &&
-              !!assignment.dueDate &&
-              !!assignment.assignDate &&
-              new Date(s.submissionTime).getTime() > new Date(assignment.dueDate).getTime() &&
-              new Date(s.submissionTime).getTime() >= new Date(assignment.assignDate).getTime(),
-          })),
+          .map((s) => {
+            // Calculate end of day for due date (23:59:59.999) in UTC
+            const dueDateEndOfDay = new Date(assignment.dueDate);
+            dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+            
+            return {
+              ...s,
+              isLate:
+                !!s.submissionTime &&
+                !!assignment.dueDate &&
+                !!assignment.assignDate &&
+                new Date(s.submissionTime).getTime() > dueDateEndOfDay.getTime() &&
+                new Date(s.submissionTime).getTime() >= new Date(assignment.assignDate).getTime(),
+            };
+          }),
       }));
 
       res.status(200).json({
@@ -647,7 +653,7 @@ export const updateAssignment = async (
   res: Response
 ): Promise<void> => {
   const { assignmentId } = req.params;
-  const { title, description, dueDate, problems } = req.body;
+  const { title, description, assignDate, dueDate, problems } = req.body;
   // @ts-expect-error: req.user is added by the protect middleware
   const { id: userId } = req.user;
 
@@ -670,6 +676,7 @@ export const updateAssignment = async (
         data: {
           title,
           description,
+          assignDate: assignDate ? new Date(assignDate) : undefined,
           dueDate: new Date(dueDate),
         },
       });
@@ -892,11 +899,15 @@ export const getMyAssignments = async (
       ).problems.length;
       const now = new Date();
       const dueDate = new Date(assignment.dueDate);
+      
+      // Calculate end of day for due date (23:59:59.999) in UTC
+      const dueDateEndOfDay = new Date(dueDate);
+      dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
 
       let status: "completed" | "pending" | "overdue";
       if (completedCount === totalProblems) {
         status = "completed";
-      } else if (now > dueDate) {
+      } else if (now > dueDateEndOfDay) {
         status = "overdue";
       } else {
         status = "pending";
