@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { Phase4MonitoringController } from './phase4-monitoring.controller';
+import { protect } from '../auth/auth.middleware';
 
 const router = Router();
 const controller = new Phase4MonitoringController();
@@ -8,7 +9,7 @@ const controller = new Phase4MonitoringController();
 router.get('/test/:testId/completion-status', (req, res) => controller.getTestCompletionStatus(req, res));
 router.post('/test/:testId/start-monitoring', (req, res) => controller.startTestMonitoring(req, res));
 router.post('/test/:testId/stop-monitoring', (req, res) => controller.stopTestMonitoring(req, res));
-router.post('/test/:testId/manual-shutdown', (req, res) => controller.requestManualShutdown(req, res));
+router.post('/test/:testId/manual-shutdown', protect, (req, res) => controller.requestManualShutdown(req, res));
 router.post('/test/:testId/emergency-shutdown', (req, res) => controller.emergencyShutdown(req, res));
 
 // Cost Tracking Routes
