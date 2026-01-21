@@ -1,10 +1,8 @@
 import * as brevo from '@getbrevo/brevo';
 import nodemailer from 'nodemailer';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 
-const prisma = new PrismaClient();
-
-// Brevo configuration
+// Brevo configuration (v3 API)
 const brevoApiInstance = new brevo.TransactionalEmailsApi();
 if (process.env.BREVO_API_KEY) {
     brevoApiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
@@ -71,14 +69,17 @@ const sendEmailWithBrevo = async (recipients: Recipient[], subject: string, html
         sendSmtpEmail.to = recipients;
 
         const response = await brevoApiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log('✅ Email sent successfully via Brevo:', response.body);
+        console.log('✅ Email sent successfully via Brevo:', response);
         return true;
     } catch (error: unknown) {
-        const err = error as { body?: { message?: string; code?: string }; message?: string };
-        console.error('❌ Brevo email failed:', err.body?.message || err.message);
+        const err = error as { response?: { body?: { message?: string; code?: string } }; message?: string; body?: { message?: string; code?: string } };
+        // Brevo v3 may use response.body or just body depending on error type
+        const errorMessage = err.response?.body?.message || err.body?.message || err.message || 'Unknown error';
+        const errorCode = err.response?.body?.code || err.body?.code;
+        console.error('❌ Brevo email failed:', errorMessage);
         
         // Check if it's an account activation error
-        if (err.body?.code === 'permission_denied' && err.body?.message?.includes('not yet activated')) {
+        if (errorCode === 'permission_denied' && errorMessage.includes('not yet activated')) {
             console.log('🔔 BREVO ACCOUNT NOT ACTIVATED: Contact contact@brevo.com to activate your account');
         }
         return false;

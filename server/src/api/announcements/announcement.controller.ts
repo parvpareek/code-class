@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import { Request, Response } from 'express';
 import { sendAnnouncementEmail } from '../../services/email.service';
 import { checkTeacherAuthorization } from '../../services/authorization.service';
-
-const prisma = new PrismaClient();
+import prisma from '../../lib/prisma';
 
 export const createAnnouncement = async (req: Request, res: Response): Promise<void> => {
     const { classId } = req.params;

@@ -187,20 +187,27 @@ const processGfgSubmissions = async (
 
 /**
  * Check all pending submissions - uses enhanced LeetCode service + HackerRank service + GFG processing
+ * 
+ * NOTE: Automatic user syncing is DISABLED to prevent memory leaks and reduce server startup overhead.
+ * User syncing should only happen when:
+ * 1. Student manually clicks "Check Submissions" for a specific assignment
+ * 2. Teacher manually triggers submission check for a specific assignment
  */
 export const checkAllSubmissions = async () => {
     console.log('🚀 Starting comprehensive submission check...');
     
+    // DISABLED: Automatic system-wide user syncing
+    // This was causing memory leaks and running on every server startup
     // Step 1: Sync all LeetCode users with enhanced integration
-    console.log('📱 Step 1: Syncing LeetCode users with enhanced integration...');
-    await syncAllLinkedLeetCodeUsers();
+    // console.log('📱 Step 1: Syncing LeetCode users with enhanced integration...');
+    // await syncAllLinkedLeetCodeUsers();
     
     // Step 2: Sync all HackerRank users with enhanced integration
-    console.log('🔶 Step 2: Syncing HackerRank users with enhanced integration...');
-    await syncAllLinkedHackerRankUsers();
+    // console.log('🔶 Step 2: Syncing HackerRank users with enhanced integration...');
+    // await syncAllLinkedHackerRankUsers();
     
     // Step 3: Process remaining GFG submissions  
-    console.log('📝 Step 3: Processing GFG submissions...');
+    console.log('📝 Processing GFG submissions...');
     const pendingSubmissions = await prisma.submission.findMany({
         where: { completed: false },
         include: { user: true, problem: true },
@@ -209,7 +216,7 @@ export const checkAllSubmissions = async () => {
     console.log(`Found ${pendingSubmissions.length} total pending submissions`);
     await processGfgSubmissions(pendingSubmissions);
 
-    console.log('✅ Comprehensive submission check completed');
+    console.log('✅ Comprehensive submission check completed (GFG only - LeetCode/HackerRank syncing disabled)');
 };
 
 /**

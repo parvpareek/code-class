@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --exec \"ts-node -r tsconfig-paths/register\" src/index.ts",
-    "build": "npx prisma generate && tsc",
+    "build": "tsc",
+    "build:full": "npx prisma generate && tsc",
+    "prisma:generate": "npx prisma generate",
     "start": "node dist/index.js",
     "test": "jest --maxWorkers=1 --forceExit --detectOpenHandles",
     "test:watch": "jest --watch --maxWorkers=1",
@@ -29,11 +31,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@getbrevo/brevo": "^2.2.0",
+    "@getbrevo/brevo": "^3.0.1",
     "@google/generative-ai": "^0.24.1",
     "@prisma/extension-accelerate": "^2.0.1",
     "@types/nodemailer": "^6.4.17",
-    "aws-sdk": "^2.1691.0",
     "axios": "^1.9.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -52,7 +53,6 @@
   },
   "devDependencies": {
     "@prisma/client": "^6.9.0",
-    "@types/aws-sdk": "^2.7.0",
     "@types/axios": "^0.9.36",
     "@types/bcryptjs": "^3.0.0",
     "@types/cors": "^2.8.18",

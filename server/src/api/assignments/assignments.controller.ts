@@ -818,16 +818,23 @@ export const checkLeetCodeSubmissionsForAssignment = async (
       return;
     }
 
+    // DISABLED: Automatic system-wide user syncing
+    // This was causing memory leaks and running automatically on server startup
+    // User syncing should only happen when checking specific assignment submissions via checkAssignmentSubmissions
     // Import the enhanced service
-    const { syncAllLinkedLeetCodeUsers } = await import(
-      "../../services/enhanced-leetcode.service"
-    );
+    // const { syncAllLinkedLeetCodeUsers } = await import(
+    //   "../../services/enhanced-leetcode.service"
+    // );
 
-    // Trigger sync for all linked users
-    await syncAllLinkedLeetCodeUsers();
+    // Trigger sync for all linked users - DISABLED
+    // await syncAllLinkedLeetCodeUsers();
+
+    // Instead, use the assignment-specific check function (only checks users in this assignment's class)
+    const { assignmentId } = req.params;
+    await checkSubmissionsForAssignmentService(assignmentId, undefined);
 
     res.status(200).json({
-      message: "LeetCode submission sync completed",
+      message: "Assignment submission check completed (system-wide syncing disabled - only checks this assignment)",
       assignmentTitle: assignment.title,
     });
   } catch (error) {

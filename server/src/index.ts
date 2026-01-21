@@ -18,7 +18,8 @@ import testRoutes from './api/tests/tests.routes';
 import monitoringRoutes from './api/monitoring/monitoring.routes';
 import { dsaProgressRoutes } from './api/dsa-progress';                                                                                                      
 
-import { initializeScheduledJobs } from './cron';
+// Cron jobs disabled - submission checking should be done on-demand only
+// import { initializeScheduledJobs } from './cron';
 import { WebSocketService } from './services/websocket.service';
 
 const app = express();
@@ -127,8 +128,9 @@ app.options('/api/v1/auth/*', (req, res) => {
   res.status(200).end();
 });
 
-// Initialize all scheduled jobs
-initializeScheduledJobs();
+// Initialize all scheduled jobs - DISABLED to reduce memory usage
+// Submission checking should be triggered manually via API endpoints
+// initializeScheduledJobs();
 
 app.get('/', (req, res) => {
   res.send('Hello from the backend! Milestone 1 Core Infrastructure Ready.');
@@ -157,4 +159,43 @@ app.get('/health', (req, res) => {
 
 server.listen(port, () => {
   console.log(`🎉 Server running at http://localhost:${port}`);
+});
+
+// Graceful shutdown handling
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  
+  // Cleanup WebSocket connections
+  await webSocketService.shutdown();
+  
+  // Close HTTP server
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+  
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  
+  // Cleanup WebSocket connections
+  await webSocketService.shutdown();
+  
+  // Close HTTP server
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+  
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
 }); 

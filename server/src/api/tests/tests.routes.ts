@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { protect, isTeacher } from '../auth/auth.middleware';
-import testSessionRoutes from './test-session.routes';
+// Test session routes removed - feature not in use
 import { 
   createTest, 
   getTests, 
@@ -30,9 +30,6 @@ router.post('/generate-test-cases', generateTestCases);
 
 // LeetCode problem import route
 router.post('/import-leetcode', importFromLeetCode);
-
-// Mount test-session routes
-router.use('/', testSessionRoutes);
 
 // Teacher-only violation monitoring routes
 router.get('/:testId/violations/stats', isTeacher, async (req, res) => {

@@ -22,6 +22,7 @@ export class WebSocketService {
   private io: SocketIOServer;
   private connectedUsers = new Map<string, string>(); // userId -> socketId
   private testRooms = new Map<string, Set<string>>(); // testId -> Set of socketIds
+  private cleanupInterval: NodeJS.Timeout;
 
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
@@ -38,6 +39,13 @@ export class WebSocketService {
 
     this.setupMiddleware();
     this.setupEventHandlers();
+    
+    // Periodic cleanup of stale connections (every 5 minutes)
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupStaleConnections();
+    }, 5 * 60 * 1000);
+    
+    console.log('WebSocket service initialized with memory leak prevention');
   }
 
   private setupMiddleware() {
@@ -538,5 +546,64 @@ export class WebSocketService {
         this.io.sockets.sockets.get(socketId)?.disconnect(true);
       }, 3000);
     }
+  }
+
+  /**
+   * Cleanup stale connections and empty rooms
+   */
+  private cleanupStaleConnections() {
+    console.log('Running WebSocket cleanup...');
+    
+    // Clean up disconnected users
+    const connectedSocketIds = new Set(Array.from(this.io.sockets.sockets.keys()));
+    
+    for (const [userId, socketId] of this.connectedUsers.entries()) {
+      if (!connectedSocketIds.has(socketId)) {
+        console.log(`Removing stale connection for user ${userId}`);
+        this.connectedUsers.delete(userId);
+      }
+    }
+    
+    // Clean up empty test rooms
+    for (const [testId, socketIds] of this.testRooms.entries()) {
+      const validSockets = new Set<string>();
+      
+      for (const socketId of socketIds) {
+        if (connectedSocketIds.has(socketId)) {
+          validSockets.add(socketId);
+        }
+      }
+      
+      if (validSockets.size === 0) {
+        console.log(`Removing empty test room ${testId}`);
+        this.testRooms.delete(testId);
+      } else if (validSockets.size !== socketIds.size) {
+        console.log(`Cleaned ${socketIds.size - validSockets.size} stale sockets from test ${testId}`);
+        this.testRooms.set(testId, validSockets);
+      }
+    }
+    
+    console.log(`WebSocket cleanup complete: ${this.connectedUsers.size} users, ${this.testRooms.size} active rooms`);
+  }
+
+  /**
+   * Graceful shutdown
+   */
+  public async shutdown() {
+    console.log('Shutting down WebSocket service...');
+    
+    // Clear cleanup interval
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+    
+    // Disconnect all clients
+    this.io.disconnectSockets(true);
+    
+    // Clear internal maps
+    this.connectedUsers.clear();
+    this.testRooms.clear();
+    
+    console.log('WebSocket service shutdown complete');
   }
 } 
