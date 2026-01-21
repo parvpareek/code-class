@@ -1,10 +1,23 @@
 import axios from 'axios';
 import { PrismaClient, Submission, User, Problem } from '@prisma/client';
-import { GfgAPIResponse } from '../types';
 import prisma from '../lib/prisma';
 import { groupBy } from '../utils/array.utils';
 import { syncAllLinkedLeetCodeUsers, forceCheckLeetCodeSubmissionsForAssignment } from './enhanced-leetcode.service';
 import { syncAllLinkedHackerRankUsers, forceCheckHackerRankSubmissionsForAssignment } from './hackerrank.service';
+
+type GfgPracticeApiUserProblemsSubmissionsRequest = {
+  handle: string;
+  requestType: '' | 'getYearwiseUserSubmissions';
+  year: string;
+  month: string;
+};
+
+type GfgPracticeApiUserProblemsSubmissionsResponse = {
+  status: 'success' | 'failed' | string;
+  message?: string;
+  result?: Record<string, Record<string, { slug?: string; pname?: string; lang?: string }>>;
+  count?: number;
+};
 
 /**
  * Fetches all solved GeeksForGeeks problem slugs for a user.
@@ -13,28 +26,39 @@ import { syncAllLinkedHackerRankUsers, forceCheckHackerRankSubmissionsForAssignm
  */
 export const getAllGfgSolvedSlugs = async (username: string): Promise<Set<string>> => {
     console.log(`Fetching all solved GFG problems for user: ${username}`);
-    const GFG_API_URL = `https://geeks-for-geeks-api.vercel.app/${username}`;
     try {
-        const response = await axios.get<GfgAPIResponse>(GFG_API_URL);
+        const GFG_PRACTICE_API_URL = 'https://practiceapi.geeksforgeeks.org/api/v1/user/problems/submissions/';
 
-        if (response.data.error || !response.data.solvedStats) {
-            console.error(`GFG API error for user ${username}: ${response.data.error || 'No solved stats found'}`);
-            return new Set();
+        // Cookie-less endpoint: relies on handle only
+        const payload: GfgPracticeApiUserProblemsSubmissionsRequest = {
+          handle: username,
+          requestType: '',
+          year: '',
+          month: ''
+        };
+
+        const response = await axios.post<GfgPracticeApiUserProblemsSubmissionsResponse>(
+          GFG_PRACTICE_API_URL,
+          payload,
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        if (!response.data || response.data.status !== 'success' || !response.data.result) {
+          console.error(`GFG Practice API error for user ${username}: ${response.data?.message || 'No result found'}`);
+          return new Set();
         }
 
-        const solvedStats = response.data.solvedStats;
-        const allSolved = [
-            ...(solvedStats.school?.questions || []),
-            ...(solvedStats.basic?.questions || []),
-            ...(solvedStats.easy?.questions || []),
-            ...(solvedStats.medium?.questions || []),
-            ...(solvedStats.hard?.questions || []),
-        ];
-        
-        const solvedSlugs = new Set<string>(
-            allSolved.map((q: { questionUrl: string }) => getGfgProblemSlug(q.questionUrl)).filter(Boolean)
-        );
-        
+        const solvedSlugs = new Set<string>();
+        for (const difficultyKey of Object.keys(response.data.result)) {
+          const byId = response.data.result[difficultyKey] || {};
+          for (const submissionId of Object.keys(byId)) {
+            const slug = byId[submissionId]?.slug;
+            if (slug) {
+              solvedSlugs.add(slug);
+            }
+          }
+        }
+
         console.log(`Found ${solvedSlugs.size} solved GFG problems for ${username}.`);
         return solvedSlugs;
     } catch (error: unknown) {
