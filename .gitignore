@@ -213,12 +213,4 @@ playwright/.cache/
 /server/admin-panel/
 # Large files that should not be in git
 *.zip
-awscliv2.zip
-server/scripts/backups/
-.terraform/
-terraform.tfstate
-terraform.tfstate.backup
-*.tfstate*
-infrastructure/.terraform/
-infrastructure/terraform.tfstate*
-src/lib/questions.json
+hidden_docs/
