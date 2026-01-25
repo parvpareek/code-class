@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { signup, login } from './auth.controller';
-import { getProfile, updateProfile, linkLeetCodeCredentials, linkHackerRankCredentials, updateGeminiKey, removeGeminiKey, getGeminiStatus } from './profile.controller';
+import { getProfile, updateProfile, linkLeetCodeCredentials, linkHackerRankCredentials, linkGfgCredentials, updateGeminiKey, removeGeminiKey, getGeminiStatus } from './profile.controller';
 import { protect } from './auth.middleware';
 
 const router = Router();
@@ -13,6 +13,7 @@ router.get('/profile', protect, getProfile);
 router.patch('/profile', protect, updateProfile);
 router.post('/leetcode-credentials', protect, linkLeetCodeCredentials);
 router.post('/hackerrank-credentials', protect, linkHackerRankCredentials);
+router.post('/gfg-credentials', protect, linkGfgCredentials);
 
 
 

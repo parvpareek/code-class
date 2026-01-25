@@ -18,7 +18,9 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
         name: true,
         role: true,
         hackerrankUsername: true,
+        hackerrankCookieStatus: true,
         gfgUsername: true,
+        gfgCookieStatus: true,
         leetcodeUsername: true,
         leetcodeCookieStatus: true,
         leetcodeTotalSolved: true,
@@ -411,6 +413,7 @@ export const linkHackerRankCredentials = async (req: Request, res: Response): Pr
         hackerrankUsername: true,
         hackerrankCookieStatus: true,
         gfgUsername: true,
+        gfgCookieStatus: true,
         leetcodeUsername: true,
         leetcodeCookieStatus: true,
         leetcodeTotalSolved: true,
@@ -435,6 +438,99 @@ export const linkHackerRankCredentials = async (req: Request, res: Response): Pr
     
     res.status(500).json({ 
       message: 'Error validating HackerRank credentials. Please try again or contact support.', 
+      error: error.message 
+    });
+  }
+};
+
+export const linkGfgCredentials = async (req: Request, res: Response): Promise<void> => {
+  // @ts-ignore
+  const userId = req.user.userId;
+  const { gfgCookie } = req.body;
+
+  if (!gfgCookie) {
+    res.status(400).json({ message: 'GeeksforGeeks cookie (gfguserName) is required' });
+    return;
+  }
+
+  try {
+    console.log('🔐 Attempting to validate GeeksforGeeks cookie...');
+    
+    // Test the cookie by trying to fetch a test problem submission
+    // We'll use a common GFG problem slug for testing
+    const testProblemSlug = 'print-1-to-n-without-loop';
+    const testUrl = `https://practiceapi.geeksforgeeks.org/api/latest/problems/${testProblemSlug}/submissions/user/`;
+    
+    const axios = await import('axios');
+    
+    try {
+      const response = await axios.default.get<{ results?: { submissions?: unknown[] } }>(testUrl, {
+        headers: {
+          'Cookie': `gfguserName=${gfgCookie}`,
+          'User-Agent': 'Mozilla/5.0',
+          'Referer': 'https://practice.geeksforgeeks.org/',
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (response.status === 200 && response.data?.results) {
+        console.log('✅ GeeksforGeeks cookie validation successful');
+      } else {
+        throw new Error('Invalid response from GFG API');
+      }
+    } catch (error: any) {
+      console.error('❌ GeeksforGeeks cookie validation failed:', error.message);
+      
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        res.status(400).json({ 
+          message: 'Invalid or expired GeeksforGeeks cookie. Please get a fresh gfguserName cookie from your browser.' 
+        });
+        return;
+      }
+      
+      throw error;
+    }
+
+    // If successful, save the cookie and update status
+    const updatedUser = await (prisma as any).user.update({
+      where: { id: userId },
+      data: {
+        gfgCookie,
+        gfgCookieStatus: 'LINKED',
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        hackerrankUsername: true,
+        hackerrankCookieStatus: true,
+        gfgUsername: true,
+        gfgCookieStatus: true,
+        leetcodeUsername: true,
+        leetcodeCookieStatus: true,
+        leetcodeTotalSolved: true,
+        leetcodeEasySolved: true,
+        leetcodeMediumSolved: true,
+        leetcodeHardSolved: true,
+        createdAt: true,
+      },
+    });
+
+    console.log(`✅ Successfully linked GeeksforGeeks account for user ${updatedUser.email}`);
+
+    // Sanitize user data before sending to frontend
+    const sanitizedUser = sanitizeUser(updatedUser);
+    res.status(200).json({ 
+      message: 'GeeksforGeeks account linked successfully! Submissions will now be checked with accurate timestamps.',
+      user: sanitizedUser
+    });
+    
+  } catch (error: any) {
+    console.error('❌ GeeksforGeeks credential validation error:', error);
+    
+    res.status(500).json({ 
+      message: 'Error validating GeeksforGeeks credentials. Please try again or contact support.', 
       error: error.message 
     });
   }

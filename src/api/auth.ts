@@ -34,3 +34,8 @@ export const linkHackerRankCredentials = async (hackerrankCookie: string) => {
   const response = await api.post('/auth/hackerrank-credentials', { hackerrankCookie });
   return response.data;
 };
+
+export const linkGfgCredentials = async (gfgCookie: string) => {
+  const response = await api.post('/auth/gfg-credentials', { gfgCookie });
+  return response.data;
+};

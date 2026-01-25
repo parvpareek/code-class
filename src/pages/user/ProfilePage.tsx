@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from '../../components/ui/alert';
 import { AlertCircle, CheckCircle, Link, Unlink, Clock, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import { Textarea } from '../../components/ui/textarea';
-import { linkLeetCodeCredentials } from '../../api/auth';
+import { linkLeetCodeCredentials, linkGfgCredentials } from '../../api/auth';
 import LeetCodeStats from '../../components/ui/LeetCodeStats';
 
 import GeminiKeySection from '../../components/profile/GeminiKeySection';
@@ -35,8 +35,13 @@ const leetCodeFormSchema = z.object({
   leetcodeCookie: z.string().min(10, 'Cookie must be at least 10 characters long'),
 });
 
+const gfgFormSchema = z.object({
+  gfgCookie: z.string().min(10, 'Cookie must be at least 10 characters long'),
+});
+
 type FormValues = z.infer<typeof formSchema>;
 type LeetCodeFormValues = z.infer<typeof leetCodeFormSchema>;
+type GfgFormValues = z.infer<typeof gfgFormSchema>;
 
 const ProfilePage: React.FC = () => {
   const { user, updateProfile, isLoading, error, refreshUser } = useAuth();
@@ -44,6 +49,9 @@ const ProfilePage: React.FC = () => {
   const [leetCodeError, setLeetCodeError] = useState<string | null>(null);
   const [leetCodeSuccess, setLeetCodeSuccess] = useState<string | null>(null);
   const [isLinkingLeetCode, setIsLinkingLeetCode] = useState(false);
+  const [gfgError, setGfgError] = useState<string | null>(null);
+  const [gfgSuccess, setGfgSuccess] = useState<string | null>(null);
+  const [isLinkingGfg, setIsLinkingGfg] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -58,6 +66,13 @@ const ProfilePage: React.FC = () => {
     resolver: zodResolver(leetCodeFormSchema),
     defaultValues: {
       leetcodeCookie: '',
+    },
+  });
+
+  const gfgForm = useForm<GfgFormValues>({
+    resolver: zodResolver(gfgFormSchema),
+    defaultValues: {
+      gfgCookie: '',
     },
   });
 
@@ -89,6 +104,24 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const onGfgSubmit = async (values: GfgFormValues) => {
+    setIsLinkingGfg(true);
+    setGfgError(null);
+    setGfgSuccess(null);
+
+    try {
+      await linkGfgCredentials(values.gfgCookie);
+      setGfgSuccess('GeeksforGeeks account linked successfully! Your submissions will now be tracked with exact timestamps.');
+      gfgForm.reset();
+      // Refresh user data to show updated status
+      await refreshUser();
+    } catch (err: any) {
+      setGfgError(err.response?.data?.message || 'Failed to link GeeksforGeeks account');
+    } finally {
+      setIsLinkingGfg(false);
+    }
+  };
+
   const getLeetCodeStatusColor = (status: string) => {
     switch (status) {
       case 'LINKED': return 'text-green-600 dark:text-green-400';
@@ -106,6 +139,30 @@ const ProfilePage: React.FC = () => {
   };
 
   const getLeetCodeStatusText = (status: string) => {
+    switch (status) {
+      case 'LINKED': return 'Linked';
+      case 'EXPIRED': return 'Session Expired';
+      default: return 'Not Linked';
+    }
+  };
+
+  const getGfgStatusColor = (status: string) => {
+    switch (status) {
+      case 'LINKED': return 'text-green-600 dark:text-green-400';
+      case 'EXPIRED': return 'text-yellow-600 dark:text-yellow-400';
+      default: return 'text-gray-600 dark:text-gray-400';
+    }
+  };
+
+  const getGfgStatusIcon = (status: string) => {
+    switch (status) {
+      case 'LINKED': return <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />;
+      case 'EXPIRED': return <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />;
+      default: return <Unlink className="h-4 w-4 text-gray-600 dark:text-gray-400" />;
+    }
+  };
+
+  const getGfgStatusText = (status: string) => {
     switch (status) {
       case 'LINKED': return 'Linked';
       case 'EXPIRED': return 'Session Expired';
@@ -256,6 +313,106 @@ const ProfilePage: React.FC = () => {
 
         {/* HackerRank Account Integration */}
         <HackerRankKeySection />
+
+        {/* GeeksforGeeks Cookie Integration - Students only */}
+        {user?.role === 'STUDENT' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link className="h-5 w-5" />
+                GeeksforGeeks Session Cookie
+              </CardTitle>
+              <CardDescription>
+                Link your GeeksforGeeks account with session cookie for automatic submission tracking with exact timestamps.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Current Status */}
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-black rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium text-sm text-gray-900 dark:text-gray-100">Connection Status</h3>
+                  <div className="flex items-center gap-2">
+                    {getGfgStatusIcon((user as any)?.gfgCookieStatus || 'NOT_LINKED')}
+                    <span className={`text-sm font-medium ${getGfgStatusColor((user as any)?.gfgCookieStatus || 'NOT_LINKED')}`}>
+                      {getGfgStatusText((user as any)?.gfgCookieStatus || 'NOT_LINKED')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Success/Error Messages */}
+              {gfgSuccess && (
+                <Alert className="mb-6 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                  <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />
+                  <AlertDescription className="text-green-700 dark:text-green-300">{gfgSuccess}</AlertDescription>
+                </Alert>
+              )}
+
+              {gfgError && (
+                <Alert variant="destructive" className="mb-6">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{gfgError}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Cookie Form */}
+              <div className="space-y-4">
+                <div className="bg-gray-50 dark:bg-gray-800/20 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">How to get your GeeksforGeeks cookie:</h4>
+                  <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-decimal list-inside">
+                    <li>Open your web browser and log in to your GeeksforGeeks account</li>
+                    <li>Open Developer Tools (F12 or Ctrl+Shift+I)</li>
+                    <li>Go to the "Application" (Chrome) or "Storage" (Firefox) tab</li>
+                    <li>Find "Cookies" → "https://practice.geeksforgeeks.org" or "https://www.geeksforgeeks.org"</li>
+                    <li>Look for the cookie named <strong>"gfguserName"</strong></li>
+                    <li><strong>Important:</strong> The cookie name is misleading - it doesn't just contain your username. Copy the <strong>entire long string value</strong> (it contains your username plus a JWT token)</li>
+                    <li>Paste the complete value below</li>
+                  </ol>
+                </div>
+
+                <Form {...gfgForm}>
+                  <form onSubmit={gfgForm.handleSubmit(onGfgSubmit)} className="space-y-4">
+                    <FormField
+                      control={gfgForm.control}
+                      name="gfgCookie"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GeeksforGeeks Cookie (gfguserName)</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Paste your gfguserName cookie value here (the entire long string)..."
+                              rows={3}
+                              className="font-mono text-sm"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            <strong>Note:</strong> The cookie name "gfguserName" is misleading - it contains your username plus a JWT token. Paste the complete value (it will be a very long string).
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button type="submit" disabled={isLinkingGfg} className="w-full">
+                      {isLinkingGfg ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Linking Account...
+                        </>
+                      ) : (
+                        <>
+                          <Link className="h-4 w-4 mr-2" />
+                          Link GeeksforGeeks Account
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
 
 

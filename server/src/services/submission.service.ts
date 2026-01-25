@@ -87,6 +87,76 @@ export const getGfgProblemSlug = (url: string): string => {
     }
 };
 
+type GfgProblemSubmissionResponse = {
+  results?: {
+    id: number;
+    problem_name: string;
+    slug: string;
+    problem_level: number;
+    problem_level_text: string;
+    submissions?: Array<{
+      submission_id: string;
+      subtime: string;
+      lang: string;
+      exec_status: string;
+      exec_status_text: string;
+      testcase_passed: string;
+      total_testcase_count: string;
+      user_score: string;
+      correct_submission_sequence: string;
+    }>;
+  };
+};
+
+/**
+ * Fetches submission details for a specific GFG problem using authenticated cookie.
+ * @param problemSlug - The GFG problem slug.
+ * @param gfgCookie - The gfguserName cookie value.
+ * @returns The earliest correct submission with timestamp, or null if not found.
+ */
+export const getGfgProblemSubmission = async (
+  problemSlug: string, 
+  gfgCookie: string
+): Promise<{ submissionTime: Date; isCorrect: boolean } | null> => {
+  const apiUrl = `https://practiceapi.geeksforgeeks.org/api/latest/problems/${problemSlug}/submissions/user/`;
+  
+  try {
+    const response = await axios.get<GfgProblemSubmissionResponse>(apiUrl, {
+      headers: {
+        'Cookie': `gfguserName=${gfgCookie}`,
+        'User-Agent': 'Mozilla/5.0',
+        'Referer': 'https://practice.geeksforgeeks.org/',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (response.status === 200 && response.data?.results?.submissions) {
+      const submissions = response.data.results.submissions;
+      
+      // Find the first correct submission (exec_status === "1")
+      const correctSubmission = submissions.find((sub: any) => sub.exec_status === '1');
+      
+      if (correctSubmission && correctSubmission.subtime) {
+        // Parse the timestamp (format: "2025-07-20 17:31:58")
+        const submissionTime = new Date(correctSubmission.subtime);
+        return {
+          submissionTime,
+          isCorrect: true
+        };
+      }
+    }
+    
+    return null;
+  } catch (error: any) {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      console.error(`🔒 GFG cookie expired/invalid for problem ${problemSlug}`);
+      throw new Error('GFG_COOKIE_EXPIRED');
+    }
+    console.error(`Error fetching GFG problem submission for ${problemSlug}:`, error.message);
+    return null;
+  }
+};
+
 /**
  * Extracts the problem slug from a LeetCode problem URL.
  * @param url - The full URL of the problem.
@@ -118,7 +188,7 @@ const getProblemIdentifier = (platform: string, url: string): string => {
 };
 
 /**
- * Process only GFG submissions - LeetCode is handled by the enhanced service
+ * Process only GFG submissions - uses cookie-based API when available for exact timestamps
  */
 const processGfgSubmissions = async (
   submissions: (Submission & {
@@ -151,36 +221,83 @@ const processGfgSubmissions = async (
         
         console.log(`👤 Processing ${userSubmissions.length} GFG submissions for user: ${user.name} (${user.email})`);
 
-        // Fetch all solved GFG problems for this user
-        console.log(`📚 Fetching GFG solved problems for ${user.name} (${user.gfgUsername})`);
-        const gfgSolved = await getAllGfgSolvedSlugs(user.gfgUsername);
+        // Get user with cookie status
+        const fullUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { gfgCookie: true, gfgCookieStatus: true }
+        });
+
+        const hasCookie = fullUser?.gfgCookie && fullUser?.gfgCookieStatus === 'LINKED';
+
+        if (hasCookie) {
+          console.log(`🔑 Using cookie-based API for ${user.name} (exact timestamps)`);
+        } else {
+          console.log(`📚 Using bulk API for ${user.name} (no timestamps)`);
+        }
 
         // Process each GFG submission
         let updatedCount = 0;
+        let cookieExpired = false;
+
         for (const submission of userSubmissions) {
             const { problem } = submission;
-            const problemIdentifier = getProblemIdentifier('gfg', problem.url);
-            console.log(`📝 Checking GFG problem: '${problem.title}' (slug: '${problemIdentifier}')`);
+            const problemSlug = getGfgProblemSlug(problem.url);
+            console.log(`📝 Checking GFG problem: '${problem.title}' (slug: '${problemSlug}')`);
             
-            const isCompleted = gfgSolved.has(problemIdentifier);
+            let submissionTime: Date | null = null;
+            let isCompleted = false;
+
+            // Try cookie-based API first if available
+            if (hasCookie && !cookieExpired && fullUser?.gfgCookie) {
+              try {
+                const result = await getGfgProblemSubmission(problemSlug, fullUser.gfgCookie);
+                if (result && result.isCorrect) {
+                  isCompleted = true;
+                  submissionTime = result.submissionTime;
+                  console.log(`✅ Found correct submission with timestamp: ${submissionTime.toISOString()}`);
+                }
+              } catch (error: any) {
+                if (error.message === 'GFG_COOKIE_EXPIRED') {
+                  console.error(`❌ GFG cookie expired for ${user.name}, marking as expired`);
+                  cookieExpired = true;
+                  // Mark cookie as expired in database
+                  await prisma.user.update({
+                    where: { id: userId },
+                    data: { gfgCookieStatus: 'EXPIRED' }
+                  });
+                  // Fall back to bulk API for remaining problems
+                } else {
+                  console.error(`⚠️ Error fetching problem submission: ${error.message}`);
+                }
+              }
+            }
+
+            // Fallback to bulk API if no cookie or cookie failed
+            if (!isCompleted) {
+              const gfgSolved = await getAllGfgSolvedSlugs(user.gfgUsername);
+              isCompleted = gfgSolved.has(problemSlug);
+              if (isCompleted) {
+                console.log(`✅ Found in bulk API (no exact timestamp)`);
+              }
+            }
 
             if (isCompleted) {
-                const currentTime = new Date();
+                const finalSubmissionTime = submissionTime || new Date(); // Use current time if no exact timestamp
                 const assignDate = problem.assignment?.assignDate;
                 const dueDate = problem.assignment?.dueDate;
                 
                 // Check if submission is before assignment start date
-                const isBeforeAssignment = assignDate && currentTime < assignDate;
+                const isBeforeAssignment = assignDate && finalSubmissionTime < assignDate;
                 
                 // Check if submission is after due date
                 let isAfterDueDate = false;
                 if (dueDate) {
                   const dueDateEndOfDay = new Date(dueDate);
                   dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
-                  isAfterDueDate = currentTime > dueDateEndOfDay;
+                  isAfterDueDate = finalSubmissionTime > dueDateEndOfDay;
                 }
                 
-                // Accept ALL submissions (problem is solved = completed)
+                // Determine status
                 let status = 'ON TIME';
                 if (isBeforeAssignment) {
                     status = 'BEFORE ASSIGNMENT';
@@ -191,13 +308,13 @@ const processGfgSubmissions = async (
                 console.log(`✅ Marking GFG submission as completed [${status}] for ${user.name} on ${problem.title}`);
                 const result = await prisma.submission.updateMany({
                     where: { id: submission.id, completed: false },
-                    data: { completed: true, submissionTime: currentTime },
+                    data: { completed: true, submissionTime: finalSubmissionTime },
                 });
                 if (result.count > 0) {
                   updatedCount++;
                 }
             } else {
-                console.log(`❌ GFG problem '${problem.title}' not found in solved list`);
+                console.log(`❌ GFG problem '${problem.title}' not solved yet`);
             }
         }
         
@@ -232,13 +349,52 @@ export const checkAllSubmissions = async () => {
     
     // Step 3: Process remaining GFG submissions  
     console.log('📝 Processing GFG submissions...');
-    const pendingSubmissions = await prisma.submission.findMany({
-        where: { completed: false },
-        include: { user: true, problem: true },
-    });
+    // Use select instead of include to reduce memory usage
+    // Process in batches to avoid loading all submissions into memory at once
+    const BATCH_SIZE = 100;
+    let skip = 0;
+    let totalProcessed = 0;
     
-    console.log(`Found ${pendingSubmissions.length} total pending submissions`);
-    await processGfgSubmissions(pendingSubmissions);
+    while (true) {
+        const pendingSubmissions = await prisma.submission.findMany({
+            where: { completed: false },
+            select: {
+                id: true,
+                userId: true,
+                problemId: true,
+                completed: true,
+                user: {
+                    select: {
+                        id: true,
+                        gfgUsername: true,
+                        gfgCookie: true,
+                        gfgCookieStatus: true,
+                    },
+                },
+                problem: {
+                    select: {
+                        id: true,
+                        url: true,
+                        title: true,
+                    },
+                },
+            },
+            skip,
+            take: BATCH_SIZE,
+        });
+        
+        if (pendingSubmissions.length === 0) break;
+        
+        console.log(`Processing batch: ${skip} to ${skip + pendingSubmissions.length}`);
+        await processGfgSubmissions(pendingSubmissions as any);
+        totalProcessed += pendingSubmissions.length;
+        skip += BATCH_SIZE;
+        
+        // Small delay to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log(`Found and processed ${totalProcessed} total pending submissions`);
 
     console.log('✅ Comprehensive submission check completed (GFG only - LeetCode/HackerRank syncing disabled)');
 };
@@ -264,10 +420,10 @@ export const checkSubmissionsForAssignment = async (assignmentId: string, userId
     console.log(`📋 Assignment: "${assignment.title}" with ${assignment.problems.length} problems`);
     
     // Show platform breakdown
-    const leetcodeProblems = assignment.problems.filter(p => p.platform.toLowerCase() === 'leetcode');
-    const hackerrankProblems = assignment.problems.filter(p => p.platform.toLowerCase() === 'hackerrank');
-    const gfgProblems = assignment.problems.filter(p => p.platform.toLowerCase() === 'gfg');
-    const otherProblems = assignment.problems.filter(p => !['leetcode', 'hackerrank', 'gfg'].includes(p.platform.toLowerCase()));
+    const leetcodeProblems = assignment.problems.filter((p: any) => p.platform.toLowerCase() === 'leetcode');
+    const hackerrankProblems = assignment.problems.filter((p: any) => p.platform.toLowerCase() === 'hackerrank');
+    const gfgProblems = assignment.problems.filter((p: any) => p.platform.toLowerCase() === 'gfg');
+    const otherProblems = assignment.problems.filter((p: any) => !['leetcode', 'hackerrank', 'gfg'].includes(p.platform.toLowerCase()));
     
     console.log(`📊 Platform breakdown: ${leetcodeProblems.length} LeetCode, ${hackerrankProblems.length} HackerRank, ${gfgProblems.length} GFG, ${otherProblems.length} other`);
     

@@ -18,10 +18,22 @@ model User {
   role                   Role             @default(STUDENT)
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
+  
+  // OAuth fields
+  googleId               String?          @unique
+  githubId               String?          @unique
+  
+  // Password reset fields
+  resetToken             String?
+  resetTokenExpiry       DateTime?
+  
+  // Platform integrations
   hackerrankUsername     String?
   hackerrankCookie       String?          // Session cookie for authenticated API calls
   hackerrankCookieStatus String           @default("NOT_LINKED") // LINKED, EXPIRED, NOT_LINKED
   gfgUsername            String?
+  gfgCookie              String?          // gfguserName cookie containing JWT token
+  gfgCookieStatus        String           @default("NOT_LINKED") // LINKED, EXPIRED, NOT_LINKED
   leetcodeUsername       String?
   leetcodeCookie         String?          // Encrypted session cookie for authenticated API calls
   leetcodeCookieStatus   String           @default("NOT_LINKED") // LINKED, EXPIRED, NOT_LINKED
