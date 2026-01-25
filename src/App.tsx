@@ -41,6 +41,8 @@ import TestTakingPage from './pages/tests/TestTakingPage';
 import TestMonitoringPage from './pages/tests/TestMonitoringPage';
 import TestResultsPage from './pages/tests/TestResultsPage';
 import { StudentAnalyticsPage } from './pages/students/StudentAnalyticsPage';
+import AdminLoginPage from './pages/admin/AdminLoginPage';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 
 const queryClient = new QueryClient();
 
@@ -70,6 +72,10 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
         </Route>
+
+        {/* Admin routes - separate from regular app */}
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
 
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Navigate to="/classes" replace />} />
