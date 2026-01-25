@@ -99,7 +99,7 @@ export const createAssignment = async (
     }
 
     // Now perform the database transaction with validated data
-    const newAssignment = await prisma.$transaction(async (tx) => {
+    const newAssignment = await prisma.$transaction(async (tx: any) => {
       const assignment = await tx.assignment.create({
         data: {
           title,
@@ -133,8 +133,8 @@ export const createAssignment = async (
       });
 
       if (students.length > 0 && createdProblems.length > 0) {
-        const submissions = students.flatMap((student) =>
-          createdProblems.map((problem) => ({
+        const submissions = students.flatMap((student: any) =>
+          createdProblems.map((problem: any) => ({
             userId: student.userId,
             problemId: problem.id,
           }))
@@ -228,7 +228,7 @@ export const getAssignmentById = async (
       return;
     }
 
-    const problemIds = assignment.problems.map((p) => p.id);
+    const problemIds = assignment.problems.map((p: any) => p.id);
 
     if (role === "TEACHER") {
       // For teachers, return all students' submissions (only automatic completion)
@@ -252,11 +252,11 @@ export const getAssignmentById = async (
         },
       });
 
-      const problemsWithSubmissions = assignment.problems.map((problem) => ({
+      const problemsWithSubmissions = assignment.problems.map((problem: any) => ({
         ...problem,
         submissions: allSubmissions
-          .filter((s) => s.problemId === problem.id)
-          .map((s) => {
+          .filter((s: any) => s.problemId === problem.id)
+          .map((s: any) => {
             // Calculate end of day for due date (23:59:59.999) in UTC
             const dueDateEndOfDay = new Date(assignment.dueDate);
             dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
@@ -537,7 +537,7 @@ export const deleteAssignment = async (
           `🗑️ Starting deletion process for assignment: ${assignmentId}`
         );
 
-        const problemIds = assignment.problems.map((p) => p.id);
+        const problemIds = assignment.problems.map((p: any) => p.id);
         console.log(
           `📝 Found ${assignment.problems.length} problems to delete`
         );

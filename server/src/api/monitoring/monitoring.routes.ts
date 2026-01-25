@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { MonitoringController } from './monitoring.controller';
+import { getMemoryMetrics, getCpuMetrics, getSystemMetrics } from './metrics.controller';
 
 const router = Router();
 
@@ -17,6 +18,11 @@ router.get('/adoption', MonitoringController.getUserAdoption);
 
 // Full system metrics - detailed view
 router.get('/metrics', MonitoringController.getSystemMetrics);
+
+// Performance monitoring endpoints
+router.get('/memory', getMemoryMetrics);
+router.get('/cpu', getCpuMetrics);
+router.get('/system', getSystemMetrics);
 
 // Reset metrics (admin only - for testing/maintenance)
 router.post('/reset', MonitoringController.resetMetrics);

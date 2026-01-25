@@ -327,7 +327,7 @@ const processLeetCodeSubmissions = async (
     dueDate: Date | null;
   }>();
   
-  userProblems.forEach(submission => {
+  userProblems.forEach((submission: any) => {
     if (submission.problem.platform.toLowerCase() === 'leetcode') {
       const slug = extractLeetCodeSlug(submission.problem.url);
       if (slug) {
@@ -439,7 +439,7 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
   }
 
   const problemSlugs = new Set(
-    leetcodeProblems.map(p => extractLeetCodeSlug(p.url)).filter(Boolean) as string[]
+    leetcodeProblems.map((p: any) => extractLeetCodeSlug(p.url)).filter(Boolean) as string[]
   );
   console.log('Target LeetCode problem slugs:', problemSlugs);
 
@@ -501,7 +501,7 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
       const submissionsByProblem = new Map<string, SubmissionData>();
       
       for (const sub of relevantSubmissions) {
-        const problem = leetcodeProblems.find(p => extractLeetCodeSlug(p.url) === sub.titleSlug);
+        const problem = leetcodeProblems.find((p: any) => extractLeetCodeSlug(p.url) === sub.titleSlug);
         if (problem) {
           const submissionTime = safeDateFromTimestamp(sub.timestamp);
           
@@ -598,7 +598,7 @@ export const forceCheckLeetCodeSubmissionsForAssignment = async (
         );
 
         const results = await prisma.$transaction(updatePromises);
-        const userUpdatedCount = results.reduce((sum, result) => sum + result.count, 0);
+        const userUpdatedCount = results.reduce((sum: number, result: any) => sum + result.count, 0);
         
         totalUpdatedCount += userUpdatedCount;
 

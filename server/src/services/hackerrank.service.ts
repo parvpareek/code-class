@@ -572,7 +572,7 @@ export const forceCheckHackerRankSubmissionsForAssignment = async (
         );
         
         const results = await prisma.$transaction(updatePromises);
-        const userUpdatedCount = results.reduce((sum, result) => sum + result.count, 0);
+        const userUpdatedCount = results.reduce((sum: number, result: any) => sum + result.count, 0);
 
         totalUpdatedCount += userUpdatedCount;
 
