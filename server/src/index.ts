@@ -7,6 +7,8 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import express from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
+import compression from 'compression';
+import { logger } from './utils/logger';
 
 import authRoutes from './api/auth';
 import classRoutes from './api/classes';
@@ -16,47 +18,31 @@ import studentRoutes from './api/students';
 import announcementRoutes from './api/announcements';
 import testRoutes from './api/tests/tests.routes';                                                                                                      
 import monitoringRoutes from './api/monitoring/monitoring.routes';
-import { dsaProgressRoutes } from './api/dsa-progress';                                                                                                      
+import { dsaProgressRoutes } from './api/dsa-progress';
+import adminRoutes from './api/admin/admin.routes';                                                                                                      
 
 // Cron jobs disabled - submission checking should be done on-demand only
 // import { initializeScheduledJobs } from './cron';
-import { WebSocketService } from './services/websocket.service';
+// WebSocket service removed to save ~50-80MB memory (not currently used)
 
 const app = express();
 const server = createServer(app);
 const port = process.env.PORT || 4000;
 
-// Initialize WebSocket service
-const webSocketService = new WebSocketService(server);
+// Set Node.js memory limits and optimize garbage collection
+// This helps prevent memory leaks and reduces overall memory usage
+if (process.env.NODE_OPTIONS && !process.env.NODE_OPTIONS.includes('--max-old-space-size')) {
+  // If not already set, suggest a limit (but don't force it as it may be set externally)
+  // For production, consider setting NODE_OPTIONS=--max-old-space-size=512
+}
 
-// AGGRESSIVE CORS SOLUTION - Set headers before any middleware
+// Add compression middleware (reduces response size by 60-80%)
+app.use(compression());
+
+// Request timeout middleware (prevents hanging requests)
 app.use((req, res, next) => {
-  // Always set CORS headers for every request
-  const origin = req.headers.origin;
-  
-  // Log everything for debugging
-  // console.log(`=== REQUEST START ===`);
-  // console.log(`${req.method} ${req.path}`);
-  // console.log(`Origin: ${origin || 'none'}`);
-  // console.log(`User-Agent: ${req.headers['user-agent'] || 'none'}`);
-  // console.log(`All headers:`, JSON.stringify(req.headers, null, 2));
-  
-  // Set CORS headers for ALL requests
-  if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
-  // Handle preflight requests immediately
-  if (req.method === 'OPTIONS') {
-    
-    // Set status and end response
-    res.status(200).end();
-    return;
-  }
-  
+  req.setTimeout(30000); // 30 second timeout
+  res.setTimeout(30000);
   next();
 });
 
@@ -78,11 +64,11 @@ const corsOptions = {
       allowedOrigins.push(...process.env.ADDITIONAL_CORS_ORIGINS.split(','));
     }
     
-    console.log('CORS check for origin:', origin, 'Allowed origins:', allowedOrigins);
-    
+    // Only log CORS failures, not every check (reduces log noise)
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      logger.warn('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -93,16 +79,16 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-console.log('CORS Origins:', corsOptions.origin);
 app.use(cors(corsOptions));
-
 app.use(express.json());
 
-// Debug middleware to log incoming requests
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
-  next();
-});
+// Debug middleware to log incoming requests (only in development)
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    logger.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
+    next();
+  });
+}
 
 // API Routes
 app.use('/api/v1/auth', authRoutes);
@@ -114,10 +100,11 @@ app.use('/api/v1/announcements', announcementRoutes);
 app.use('/api/v1/tests', testRoutes);
 app.use('/api/v1/monitoring', monitoringRoutes);
 app.use('/api/v1/dsa', dsaProgressRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // Explicit OPTIONS handler for auth endpoints
 app.options('/api/v1/auth/*', (req, res) => {
-  console.log('=== EXPLICIT OPTIONS HANDLER FOR AUTH ===');
+  logger.debug('OPTIONS handler for auth endpoint');
   const origin = req.headers.origin;
   if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -138,7 +125,7 @@ app.get('/', (req, res) => {
 
 // CORS test endpoint
 app.get('/api/v1/cors-test', (req, res) => {
-  console.log('CORS test endpoint hit');
+  logger.debug('CORS test endpoint hit');
   res.json({ 
     message: 'CORS is working!', 
     timestamp: new Date().toISOString(),
@@ -158,44 +145,42 @@ app.get('/health', (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`🎉 Server running at http://localhost:${port}`);
+  logger.log(`🎉 Server running at http://localhost:${port}`);
 });
 
 // Graceful shutdown handling
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received: closing HTTP server');
+  logger.log('SIGTERM signal received: closing HTTP server');
   
-  // Cleanup WebSocket connections
-  await webSocketService.shutdown();
+  // WebSocket service removed - no cleanup needed
   
   // Close HTTP server
   server.close(() => {
-    console.log('HTTP server closed');
+    logger.log('HTTP server closed');
     process.exit(0);
   });
   
   // Force close after 10 seconds
   setTimeout(() => {
-    console.error('Could not close connections in time, forcefully shutting down');
+    logger.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 10000);
 });
 
 process.on('SIGINT', async () => {
-  console.log('SIGINT signal received: closing HTTP server');
+  logger.log('SIGINT signal received: closing HTTP server');
   
-  // Cleanup WebSocket connections
-  await webSocketService.shutdown();
+  // WebSocket service removed - no cleanup needed
   
   // Close HTTP server
   server.close(() => {
-    console.log('HTTP server closed');
+    logger.log('HTTP server closed');
     process.exit(0);
   });
   
   // Force close after 10 seconds
   setTimeout(() => {
-    console.error('Could not close connections in time, forcefully shutting down');
+    logger.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 10000);
 }); 

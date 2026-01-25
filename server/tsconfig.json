@@ -24,7 +24,8 @@
     "allowImportingTsExtensions": false,
     "noEmit": false,
     "incremental": true,
-    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "removeComments": true
   },
   "include": ["src/**/*"],
   "exclude": [

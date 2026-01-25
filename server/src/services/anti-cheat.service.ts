@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { WebSocketService } from './websocket.service';
+// WebSocket service removed - using console logging instead for notifications
 
 export enum ViolationType {
   TAB_SWITCH = 'TAB_SWITCH',
@@ -166,17 +166,19 @@ export class AntiCheatService {
         timestamp: new Date()
       });
 
-      // Notify student via WebSocket
-      WebSocketService.notifyStudent(sessionId, {
-        type: 'PENALTY_APPLIED',
-        penalty: {
-          level: penaltyLevel,
-          message,
-          violationType,
-          count: violationCount,
-          shouldTerminate
-        }
-      });
+      // WebSocket notifications disabled (WebSocket service removed to save memory)
+      // Log penalty for debugging instead
+      console.log(`[Anti-Cheat] Penalty applied to session ${sessionId}: ${penaltyLevel} - ${message}`);
+      // WebSocketService.notifyStudent(sessionId, {
+      //   type: 'PENALTY_APPLIED',
+      //   penalty: {
+      //     level: penaltyLevel,
+      //     message,
+      //     violationType,
+      //     count: violationCount,
+      //     shouldTerminate
+      //   }
+      // });
 
       console.log(`Violation recorded: ${violationType} for session ${sessionId}, penalty: ${penaltyLevel}`);
 
@@ -265,11 +267,14 @@ export class AntiCheatService {
    * Notify teacher of violations
    */
   private static async notifyTeacher(teacherId: string, notification: any): Promise<void> {
-    try {
-      WebSocketService.notifyTeacher(teacherId, notification);
-    } catch (error) {
-      console.error('Error notifying teacher:', error);
-    }
+    // WebSocket notifications disabled (WebSocket service removed to save memory)
+    // Log notification for debugging instead
+    console.log(`[Anti-Cheat] Teacher notification for ${teacherId}:`, notification);
+    // try {
+    //   WebSocketService.notifyTeacher(teacherId, notification);
+    // } catch (error) {
+    //   console.error('Error notifying teacher:', error);
+    // }
   }
 
   /**
