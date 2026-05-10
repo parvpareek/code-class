@@ -266,7 +266,13 @@ export const oauthGoogleStart = async (req: Request, res: Response): Promise<voi
     const cid = process.env.GOOGLE_CLIENT_ID;
     const redir = process.env.GOOGLE_REDIRECT_URI;
     if (!cid || !redir) {
-      res.status(503).send('Google OAuth is not configured on the server');
+      logger.warn('Google OAuth: set GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI in server environment', {
+        hasClientId: Boolean(cid),
+        hasRedirectUri: Boolean(redir),
+      });
+      res.status(503).send(
+        'Google OAuth is not configured on the server. In Railway (or your host), set GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI to match Google Cloud Console (OAuth client credentials and Authorized redirect URIs).'
+      );
       return;
     }
     const role = parseRoleFromQuery(req.query.role);
@@ -345,7 +351,13 @@ export const oauthGithubStart = async (req: Request, res: Response): Promise<voi
     const cid = process.env.GITHUB_CLIENT_ID;
     const redir = process.env.GITHUB_REDIRECT_URI;
     if (!cid || !redir) {
-      res.status(503).send('GitHub OAuth is not configured on the server');
+      logger.warn('GitHub OAuth: set GITHUB_CLIENT_ID and GITHUB_REDIRECT_URI', {
+        hasClientId: Boolean(cid),
+        hasRedirectUri: Boolean(redir),
+      });
+      res.status(503).send(
+        'GitHub OAuth is not configured on the server. Add GITHUB_CLIENT_ID and GITHUB_REDIRECT_URI to your host environment.'
+      );
       return;
     }
     const role = parseRoleFromQuery(req.query.role);
