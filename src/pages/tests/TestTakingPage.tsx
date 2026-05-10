@@ -132,7 +132,6 @@ const TestTakingPage: React.FC = () => {
 
   // Handle violation events
   const handleViolation = (violation: ViolationEvent) => {
-    console.log('Violation detected:', violation);
     toast({
       title: 'Violation Detected',
       description: `${violation.type.replace('_', ' ')} detected`,

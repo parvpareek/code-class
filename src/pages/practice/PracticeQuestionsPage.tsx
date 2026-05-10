@@ -223,21 +223,15 @@ const PracticeQuestionsPage: React.FC = () => {
     const loadData = async () => {
       setLoading(true);
       try {
-        console.log('Loading DSA sheet and user progress...');
         // Load DSA sheet data
         const dsaData = await loadDSASheet();
-        
+
         // Load user progress from localStorage
         const progressData = { progress: loadProgressFromLocalStorage() };
-        console.log('User progress loaded from localStorage');
-        
-        console.log('DSA sheet loaded:', dsaData);
-        console.log('User progress loaded:', progressData);
-        
+
         setDsaSheet(dsaData);
         setUserProgress(progressData.progress || {});
-      } catch (error) {
-        console.error('Failed to load DSA sheet:', error);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -291,8 +285,6 @@ const PracticeQuestionsPage: React.FC = () => {
   // Handle question completion toggle
   const handleToggleCompletion = async (questionId: string, isCompleted: boolean) => {
     try {
-      console.log('Updating completion for question:', questionId, 'to:', isCompleted);
-      
       // Update local state
       const newProgress = {
         ...userProgress,
@@ -311,10 +303,7 @@ const PracticeQuestionsPage: React.FC = () => {
       
       // Save to localStorage
       saveProgressToLocalStorage(newProgress);
-      
-      console.log('Completion status updated successfully');
-    } catch (error) {
-      console.error('Error updating completion status:', error);
+    } catch {
       alert('Failed to update completion status.');
     }
   };
@@ -322,8 +311,6 @@ const PracticeQuestionsPage: React.FC = () => {
   // Handle revision toggle
   const handleToggleRevision = async (questionId: string, isRevision: boolean) => {
     try {
-      console.log('Updating revision for question:', questionId, 'to:', isRevision);
-      
       // Update local state
       const newProgress = {
         ...userProgress,
@@ -342,10 +329,7 @@ const PracticeQuestionsPage: React.FC = () => {
       
       // Save to localStorage
       saveProgressToLocalStorage(newProgress);
-      
-      console.log('Revision status updated successfully');
-    } catch (error) {
-      console.error('Error updating revision status:', error);
+    } catch {
       alert('Failed to update revision status.');
     }
   };

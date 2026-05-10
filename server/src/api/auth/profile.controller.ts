@@ -4,6 +4,7 @@ import { LeetCode } from 'leetcode-query';
 import { Credential } from 'leetcode-query';
 import { fetchAuthenticatedStats } from '../../services/enhanced-leetcode.service';
 import { sanitizeUser } from '../../utils/user-sanitization';
+import { logger } from '../../utils/logger';
 
 export const getProfile = async (req: Request, res: Response): Promise<void> => {
   // @ts-ignore
@@ -77,22 +78,15 @@ export const linkLeetCodeCredentials = async (req: Request, res: Response): Prom
   }
 
   try {
-    console.log('🔐 Attempting to validate LeetCode session cookie...');
-    
     // Test the cookie by initializing credentials
     const credential = new Credential();
     await credential.init(leetcodeCookie);
-    
-    console.log('✅ LeetCode credential initialization successful');
 
     // Fetch LeetCode statistics using the authenticated API
-    console.log('📊 Fetching LeetCode statistics...');
     let leetcodeStats = null;
     try {
       leetcodeStats = await fetchAuthenticatedStats(leetcodeCookie);
-      console.log('✅ LeetCode statistics fetched successfully:', leetcodeStats);
-    } catch (statsError: any) {
-      console.warn('⚠️ Could not fetch LeetCode statistics, but cookie is valid:', statsError.message);
+    } catch {
       // We'll still link the account even if stats fetching fails
     }
 
@@ -130,11 +124,6 @@ export const linkLeetCodeCredentials = async (req: Request, res: Response): Prom
       },
     });
 
-    console.log(`✅ Successfully linked LeetCode account for user ${updatedUser.email}`);
-    if (leetcodeStats) {
-      console.log(`📈 Stats populated: Total=${leetcodeStats.totalSolved}, Easy=${leetcodeStats.easySolved}, Medium=${leetcodeStats.mediumSolved}, Hard=${leetcodeStats.hardSolved}`);
-    }
-
     // Sanitize user data before sending to frontend
     const sanitizedUser = sanitizeUser(updatedUser);
     res.status(200).json({ 
@@ -145,8 +134,8 @@ export const linkLeetCodeCredentials = async (req: Request, res: Response): Prom
     });
     
   } catch (error: any) {
-    console.error('❌ LeetCode credential validation error:', error);
-    
+    logger.error('LeetCode credential validation failed');
+
     // Check if error is due to invalid session or API issues
     if (error.message && (
       error.message.includes('login') || 
@@ -194,8 +183,6 @@ export const updateGeminiKey = async (req: Request, res: Response): Promise<void
   }
 
   try {
-    console.log(`🔑 Adding Gemini API key for teacher ${userId}`);
-
     // Validate the API key first
     const isValid = await validateGeminiKey(apiKey.trim());
     
@@ -218,16 +205,14 @@ export const updateGeminiKey = async (req: Request, res: Response): Promise<void
       }
     });
 
-    console.log(`✅ Gemini API key successfully added for teacher ${userId}`);
-
     res.status(200).json({
       message: 'Gemini API key added successfully! You can now generate AI-powered test cases.',
       keyStatus: 'ACTIVE'
     });
 
   } catch (error: any) {
-    console.error('❌ Error adding Gemini API key:', error);
-    
+    logger.error('Error adding Gemini API key');
+
     if (error.message.includes('Invalid API key')) {
       res.status(400).json({ 
         message: 'Invalid Gemini API key format. Please check your Google AI Studio key.' 
@@ -257,8 +242,6 @@ export const removeGeminiKey = async (req: Request, res: Response): Promise<void
   }
 
   try {
-    console.log(`🗑️ Removing Gemini API key for teacher ${userId}`);
-
     // Update user status
     await (prisma as any).user.update({
       where: { id: userId },
@@ -268,14 +251,12 @@ export const removeGeminiKey = async (req: Request, res: Response): Promise<void
       }
     });
 
-    console.log(`✅ Gemini API key successfully removed for teacher ${userId}`);
-
     res.status(200).json({
       message: 'Gemini API key removed successfully'
     });
 
   } catch (error: any) {
-    console.error('❌ Error removing Gemini API key:', error);
+    logger.error('Error removing Gemini API key');
     res.status(500).json({ 
       message: 'Error removing Gemini API key. Please try again.', 
       error: error.message 
@@ -317,7 +298,7 @@ export const getGeminiStatus = async (req: Request, res: Response): Promise<void
     });
 
   } catch (error: any) {
-    console.error('❌ Error fetching Gemini status:', error);
+    logger.error('Error fetching Gemini key status');
     res.status(500).json({ 
       message: 'Error fetching Gemini key status', 
       error: error.message 
@@ -340,8 +321,8 @@ async function validateGeminiKey(apiKey: string): Promise<boolean> {
     const text = response.text();
     
     return text && text.length > 0;
-  } catch (error) {
-    console.error('Gemini API key validation error:', error);
+  } catch {
+    logger.warn('Gemini API key validation failed');
     return false;
   }
 }
@@ -377,16 +358,12 @@ export const linkHackerRankCredentials = async (req: Request, res: Response): Pr
   }
 
   try {
-    console.log('🔐 Attempting to validate HackerRank session cookie...');
-    
     // Test the cookie by trying to fetch submissions
     const { fetchHackerRankSubmissions } = await import('../../services/hackerrank.service');
     
     try {
       await fetchHackerRankSubmissions(hackerrankCookie, 1); // Just fetch 1 submission to test
-      console.log('✅ HackerRank session cookie validation successful');
     } catch (error: any) {
-      console.error('❌ HackerRank session cookie validation failed:', error.message);
       
       if (error.message.includes('expired') || error.message.includes('invalid')) {
         res.status(400).json({ 
@@ -424,8 +401,6 @@ export const linkHackerRankCredentials = async (req: Request, res: Response): Pr
       },
     });
 
-    console.log(`✅ Successfully linked HackerRank account for user ${updatedUser.email}`);
-
     // Sanitize user data before sending to frontend
     const sanitizedUser = sanitizeUser(updatedUser);
     res.status(200).json({ 
@@ -434,8 +409,8 @@ export const linkHackerRankCredentials = async (req: Request, res: Response): Pr
     });
     
   } catch (error: any) {
-    console.error('❌ HackerRank credential validation error:', error);
-    
+    logger.error('HackerRank credential validation failed');
+
     res.status(500).json({ 
       message: 'Error validating HackerRank credentials. Please try again or contact support.', 
       error: error.message 
@@ -454,8 +429,6 @@ export const linkGfgCredentials = async (req: Request, res: Response): Promise<v
   }
 
   try {
-    console.log('🔐 Attempting to validate GeeksforGeeks cookie...');
-    
     // Test the cookie by trying to fetch a test problem submission
     // We'll use a common GFG problem slug for testing
     const testProblemSlug = 'print-1-to-n-without-loop';
@@ -474,12 +447,11 @@ export const linkGfgCredentials = async (req: Request, res: Response): Promise<v
       });
       
       if (response.status === 200 && response.data?.results) {
-        console.log('✅ GeeksforGeeks cookie validation successful');
+        // validated
       } else {
         throw new Error('Invalid response from GFG API');
       }
     } catch (error: any) {
-      console.error('❌ GeeksforGeeks cookie validation failed:', error.message);
       
       if (error.response?.status === 401 || error.response?.status === 403) {
         res.status(400).json({ 
@@ -517,8 +489,6 @@ export const linkGfgCredentials = async (req: Request, res: Response): Promise<v
       },
     });
 
-    console.log(`✅ Successfully linked GeeksforGeeks account for user ${updatedUser.email}`);
-
     // Sanitize user data before sending to frontend
     const sanitizedUser = sanitizeUser(updatedUser);
     res.status(200).json({ 
@@ -527,8 +497,8 @@ export const linkGfgCredentials = async (req: Request, res: Response): Promise<v
     });
     
   } catch (error: any) {
-    console.error('❌ GeeksforGeeks credential validation error:', error);
-    
+    logger.error('GeeksforGeeks credential validation failed');
+
     res.status(500).json({ 
       message: 'Error validating GeeksforGeeks credentials. Please try again or contact support.', 
       error: error.message 

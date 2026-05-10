@@ -38,7 +38,6 @@ const LeaderboardPage: React.FC = () => {
       try {
         // Fetch classes first
         const classesResponse = await getClasses();
-        console.log('📚 Fetched classes for leaderboard:', classesResponse);
         setClasses(classesResponse.classes || []);
         
         // Fetch initial leaderboard with default values

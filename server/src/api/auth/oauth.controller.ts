@@ -266,10 +266,7 @@ export const oauthGoogleStart = async (req: Request, res: Response): Promise<voi
     const cid = process.env.GOOGLE_CLIENT_ID;
     const redir = process.env.GOOGLE_REDIRECT_URI;
     if (!cid || !redir) {
-      logger.warn('Google OAuth: set GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI in server environment', {
-        hasClientId: Boolean(cid),
-        hasRedirectUri: Boolean(redir),
-      });
+      logger.warn('Google OAuth: GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI missing on server');
       res.status(503).send(
         'Google OAuth is not configured on the server. In Railway (or your host), set GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI to match Google Cloud Console (OAuth client credentials and Authorized redirect URIs).'
       );
@@ -287,8 +284,8 @@ export const oauthGoogleStart = async (req: Request, res: Response): Promise<voi
       prompt: 'select_account',
     });
     res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${qs.toString()}`);
-  } catch (e) {
-    logger.error('oauthGoogleStart:', e);
+  } catch {
+    logger.error('oauthGoogleStart failed');
     res.status(500).send('OAuth error');
   }
 };
@@ -337,7 +334,7 @@ export const oauthGoogleCallback = async (req: Request, res: Response): Promise<
     oauthSuccessRedirect(res, token);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Google sign-in failed';
-    logger.error('oauthGoogleCallback:', e);
+    logger.error('oauthGoogleCallback failed');
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       oauthErrorRedirect(res, 'Could not link this account (identity conflict).');
       return;
@@ -351,10 +348,7 @@ export const oauthGithubStart = async (req: Request, res: Response): Promise<voi
     const cid = process.env.GITHUB_CLIENT_ID;
     const redir = process.env.GITHUB_REDIRECT_URI;
     if (!cid || !redir) {
-      logger.warn('GitHub OAuth: set GITHUB_CLIENT_ID and GITHUB_REDIRECT_URI', {
-        hasClientId: Boolean(cid),
-        hasRedirectUri: Boolean(redir),
-      });
+      logger.warn('GitHub OAuth: GITHUB_CLIENT_ID or GITHUB_REDIRECT_URI missing on server');
       res.status(503).send(
         'GitHub OAuth is not configured on the server. Add GITHUB_CLIENT_ID and GITHUB_REDIRECT_URI to your host environment.'
       );
@@ -369,8 +363,8 @@ export const oauthGithubStart = async (req: Request, res: Response): Promise<voi
       state,
     });
     res.redirect(`https://github.com/login/oauth/authorize?${qs.toString()}`);
-  } catch (e) {
-    logger.error('oauthGithubStart:', e);
+  } catch {
+    logger.error('oauthGithubStart failed');
     res.status(500).send('OAuth error');
   }
 };
@@ -409,7 +403,7 @@ export const oauthGithubCallback = async (req: Request, res: Response): Promise<
     oauthSuccessRedirect(res, token);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'GitHub sign-in failed';
-    logger.error('oauthGithubCallback:', e);
+    logger.error('oauthGithubCallback failed');
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       oauthErrorRedirect(res, 'Could not link this account (identity conflict).');
       return;

@@ -11,9 +11,6 @@ const api = axios.create({
   baseURL: getApiV1BaseUrl(),
 });
 
-// Debug log to help identify any issues (remove in production)
-console.log('API Base URL:', api.defaults.baseURL);
-
 // Interceptor to add JWT token to request headers
 api.interceptors.request.use(
   (config) => {

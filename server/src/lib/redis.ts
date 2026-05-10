@@ -78,7 +78,7 @@ if (useMemory) {
   console.log('Using in-memory Redis substitute (DISABLE_REDIS / USE_MEMORY_REDIS). Not suitable for multi-instance.');
   redisClient = new MemoryRedis() as unknown as Redis;
 } else if (process.env.REDIS_URL) {
-  console.log(`Connecting to Redis via URL`);
+  console.log('Initializing Redis client');
 
   const connectionOptions: {
     maxRetriesPerRequest: number;
@@ -113,7 +113,7 @@ if (useMemory) {
   const redisPort = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;
   const redisPassword = process.env.REDIS_PASSWORD || undefined;
 
-  console.log(`Connecting to Redis at ${redisHost}:${redisPort}`);
+  console.log('Initializing Redis client');
 
   redisClient = new Redis({
     host: redisHost,

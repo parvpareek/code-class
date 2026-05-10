@@ -89,7 +89,6 @@ export const useInvigilator = ({
     // Call local handler
     onViolation?.(violation);
 
-    console.warn(`[Invigilation] Violation detected: ${type}`, details);
   }, [sessionId, socket, onViolation, isActive]);
 
   // Fullscreen API functions

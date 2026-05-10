@@ -680,12 +680,10 @@ const TestMonitoringPage: React.FC = () => {
           <ViolationMonitoringPanel 
             testId={testId || ''} 
             violations={[]}
-            onTerminateStudent={(sessionId) => {
-              console.log('Terminate student:', sessionId);
+            onTerminateStudent={(_sessionId) => {
               // TODO: Implement termination logic
             }}
-            onWarnStudent={(sessionId) => {
-              console.log('Warn student:', sessionId);
+            onWarnStudent={(_sessionId) => {
               // TODO: Implement warning logic
             }}
           />

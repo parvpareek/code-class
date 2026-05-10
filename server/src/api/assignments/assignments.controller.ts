@@ -13,6 +13,7 @@ import {
   checkTeacherAuthorization,
   checkTeacherAuthorizationForAssignment,
 } from "../../services/authorization.service";
+import { logger } from "../../utils/logger";
 
 const getPlatformFromUrl = (url: string): string => {
   if (typeof url !== "string" || !url) {
@@ -67,7 +68,6 @@ export const createAssignment = async (
         };
 
         if (platform === "leetcode") {
-          console.log(`Validating LeetCode URL: ${problem.url}`);
           try {
             const officialDetails = await getLeetCodeProblemDetails(
               problem.url
@@ -79,16 +79,11 @@ export const createAssignment = async (
                 difficulty: officialDetails.difficulty,
               };
             } else {
-              console.warn(
-                `Could not verify LeetCode problem with URL: ${problem.url}. Falling back to user-provided details.`
-              );
+              logger.warn("Could not verify LeetCode problem; using user-provided details");
               validatedProblems[i] = problemData;
             }
-          } catch (error) {
-            console.warn(
-              `Error validating LeetCode problem ${problem.url}:`,
-              error
-            );
+          } catch {
+            logger.warn("Error validating LeetCode problem");
             // Continue with user-provided data if API fails
             validatedProblems[i] = problemData;
           }
@@ -158,35 +153,20 @@ export const createAssignment = async (
     // Send email notification (don't await to avoid blocking the response)
     const teacher = await prisma.user.findUnique({ where: { id: userId } });
     if (teacher && teacher.name) {
-      sendAssignmentEmail(classId, title, teacher.name).catch((error) => {
-        console.error("Failed to send assignment email:", error);
+      sendAssignmentEmail(classId, title, teacher.name).catch(() => {
+        logger.warn("Failed to send assignment email");
       });
     }
 
     res.status(201).json(newAssignment);
   } catch (error: unknown) {
-    // This is the new, more detailed catch block
-    console.error("--- DETAILED ERROR LOG: CREATE ASSIGNMENT ---");
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error("Prisma Error Code:", error.code);
-      console.error("Prisma Meta:", error.meta);
-    }
-    console.error("Full Error Object:", JSON.stringify(error, null, 2));
-    console.error("--- END DETAILED ERROR LOG ---");
-
-    const err = error as Error;
-    res.status(500).json({
-      message: "Error creating assignment",
-      error: {
-        name: err.name,
-        message: err.message,
-        stack: err.stack,
-        ...(error instanceof Prisma.PrismaClientKnownRequestError && {
-          code: error.code,
-          meta: error.meta,
-        }),
-      },
-    });
+    logger.error("Error creating assignment");
+    const message =
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+        ? "A duplicate record prevented creating this assignment."
+        : "Error creating assignment";
+    res.status(500).json({ message });
   }
 };
 
@@ -342,8 +322,8 @@ export const getAssignmentById = async (
 
       res.status(200).json(response);
     }
-  } catch (error) {
-    console.error("Error fetching assignment:", error);
+  } catch {
+    logger.error("Error fetching assignment");
     res.status(500).json({ message: "Error fetching assignment" });
   }
 };
@@ -352,15 +332,7 @@ export const checkSubmissions = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  console.log("🔄 [DEBUG] checkSubmissions endpoint called");
-  console.log("🔄 [DEBUG] Request method:", req.method);
-  console.log("🔄 [DEBUG] Request URL:", req.url);
-  console.log("🔄 [DEBUG] Request user:", (req as { user?: unknown }).user);
-
   try {
-    console.log(
-      "🚀 [DEBUG] Manual submission check triggered for all assignments..."
-    );
     await checkAllSubmissionsService();
 
     // Update lastSubmissionCheck for all assignments
@@ -368,16 +340,13 @@ export const checkSubmissions = async (
       data: { lastSubmissionCheck: new Date() },
     });
 
-    console.log("✅ [DEBUG] checkAllSubmissionsService completed successfully");
     res.status(200).json({
       message: "Submission check completed successfully.",
       lastChecked: new Date().toISOString(),
     });
-  } catch (error) {
-    console.error("❌ [DEBUG] Error during manual submission check:", error);
-    res
-      .status(500)
-      .json({ message: "Error during manual submission check", error });
+  } catch {
+    logger.error("Manual submission check failed");
+    res.status(500).json({ message: "Error during manual submission check" });
   }
 };
 
@@ -405,20 +374,16 @@ export const checkAssignmentSubmissions = async (
 
     // Clear cache for this assignment to ensure fresh data on next request
     const cacheKey = `__express__/api/v1/assignments/${assignmentId}`;
-    redisClient.del(cacheKey).then(() => {
-      console.log(`✅ Cleared cache for assignment ${assignmentId}`);
-    }).catch((err: Error) => {
-      console.error('Error clearing assignment cache:', err);
+    redisClient.del(cacheKey).catch(() => {
+      logger.warn("Failed to clear assignment cache");
     });
 
     res.status(200).json({
       message: `Submission check completed. ${count} submissions updated.`,
     });
-  } catch (error) {
-    console.error("Error checking submissions for assignment:", error);
-    res
-      .status(500)
-      .json({ message: "Error checking submissions for assignment", error });
+  } catch {
+    logger.error("Error checking submissions for assignment");
+    res.status(500).json({ message: "Error checking submissions for assignment" });
   }
 };
 
@@ -475,18 +440,16 @@ export const checkMySubmissionsForAssignment = async (
 
     // Clear cache for this assignment to ensure fresh data on next request
     const cacheKey = `__express__/api/v1/assignments/${assignmentId}`;
-    redisClient.del(cacheKey).then(() => {
-      console.log(`✅ Cleared cache for assignment ${assignmentId}`);
-    }).catch((err: Error) => {
-      console.error('Error clearing assignment cache:', err);
+    redisClient.del(cacheKey).catch(() => {
+      logger.warn("Failed to clear assignment cache");
     });
 
     res.status(200).json({
       message: `Submission check completed. ${count} of your submissions were updated.`,
     });
-  } catch (error) {
-    console.error("Error checking student submissions for assignment:", error);
-    res.status(500).json({ message: "Error checking your submissions", error });
+  } catch {
+    logger.error("Error checking student submissions for assignment");
+    res.status(500).json({ message: "Error checking your submissions" });
   }
 };
 
@@ -533,51 +496,33 @@ export const deleteAssignment = async (
     // Use a transaction with timeout to ensure all related data is deleted properly
     await prisma.$transaction(
       async (tx) => {
-        console.log(
-          `🗑️ Starting deletion process for assignment: ${assignmentId}`
-        );
-
         const problemIds = assignment.problems.map((p: any) => p.id);
-        console.log(
-          `📝 Found ${assignment.problems.length} problems to delete`
-        );
-        console.log(
-          `👥 Found ${assignment.studentAssignmentInfos.length} student assignment info records to delete`
-        );
 
         // 1. Delete all submissions for all problems in this assignment
         if (problemIds.length > 0) {
-          const deletedSubmissions = await tx.submission.deleteMany({
+          await tx.submission.deleteMany({
             where: {
               problemId: { in: problemIds },
             },
           });
-          console.log(`📤 Deleted ${deletedSubmissions.count} submissions`);
         }
 
         // 2. Delete all StudentAssignmentInfo records for this assignment
-        const deletedStudentInfo = await tx.studentAssignmentInfo.deleteMany({
+        await tx.studentAssignmentInfo.deleteMany({
           where: { assignmentId: assignmentId },
         });
-        console.log(
-          `👥 Deleted ${deletedStudentInfo.count} student assignment info records`
-        );
 
         // 3. Delete all problems in the assignment
         if (problemIds.length > 0) {
-          const deletedProblems = await tx.problem.deleteMany({
+          await tx.problem.deleteMany({
             where: { assignmentId: assignmentId },
           });
-          console.log(`📝 Deleted ${deletedProblems.count} problems`);
         }
 
         // 4. Finally, delete the assignment itself
-        const deletedAssignment = await tx.assignment.delete({
+        await tx.assignment.delete({
           where: { id: assignmentId },
         });
-        console.log(
-          `✅ Successfully deleted assignment: ${deletedAssignment.id} - "${deletedAssignment.title}"`
-        );
       },
       {
         timeout: 30000, // 30 second timeout
@@ -590,13 +535,10 @@ export const deleteAssignment = async (
       deletedAssignmentId: assignmentId,
     });
   } catch (error) {
-    console.error("❌ Error deleting assignment:", error);
+    logger.error("Error deleting assignment");
 
     // Enhanced error handling with more specific cases
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error("Prisma Error Code:", error.code);
-      console.error("Prisma Meta:", error.meta);
-
       switch (error.code) {
         case "P2003":
           res.status(400).json({
@@ -624,7 +566,6 @@ export const deleteAssignment = async (
         default:
           res.status(500).json({
             message: "Database error occurred while deleting assignment.",
-            error: error.message,
             code: error.code,
           });
           return;
@@ -643,7 +584,6 @@ export const deleteAssignment = async (
 
     res.status(500).json({
       message: "An unexpected error occurred while deleting the assignment.",
-      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
@@ -766,9 +706,9 @@ export const updateAssignment = async (
     });
 
     res.status(200).json(updatedAssignment);
-  } catch (error) {
-    console.error("Error updating assignment:", error);
-    res.status(500).json({ message: "Error updating assignment", error });
+  } catch {
+    logger.error("Error updating assignment");
+    res.status(500).json({ message: "Error updating assignment" });
   }
 };
 
@@ -777,16 +717,9 @@ export const checkLeetCodeSubmissionsForAssignment = async (
   res: Response
 ): Promise<void> => {
   const { id } = req.params;
-  console.log(
-    "📱 [DEBUG] checkLeetCodeSubmissionsForAssignment endpoint called"
-  );
-  console.log("📱 [DEBUG] Assignment ID:", id);
-  console.log("📱 [DEBUG] Request method:", req.method);
-  console.log("📱 [DEBUG] Request URL:", req.url);
 
   // @ts-expect-error: req.user is added by the protect middleware
   const userId = req.user?.userId;
-  console.log("📱 [DEBUG] User ID:", userId);
 
   try {
     // Get the assignment and verify the user is the teacher
@@ -837,11 +770,9 @@ export const checkLeetCodeSubmissionsForAssignment = async (
       message: "Assignment submission check completed (system-wide syncing disabled - only checks this assignment)",
       assignmentTitle: assignment.title,
     });
-  } catch (error) {
-    console.error("Error checking LeetCode submissions:", error);
-    res
-      .status(500)
-      .json({ message: "Error checking LeetCode submissions", error });
+  } catch {
+    logger.error("Error checking LeetCode submissions");
+    res.status(500).json({ message: "Error checking LeetCode submissions" });
   }
 };
 
@@ -935,9 +866,9 @@ export const getMyAssignments = async (
     });
 
     res.status(200).json(assignmentsWithStatus);
-  } catch (error) {
-    console.error("Error fetching user assignments:", error);
-    res.status(500).json({ message: "Error fetching assignments", error });
+  } catch {
+    logger.error("Error fetching user assignments");
+    res.status(500).json({ message: "Error fetching assignments" });
   }
 };
 
@@ -950,12 +881,6 @@ export const markAllAsCompleted = async (
   const user = req.user as { userId: string; role: string };
 
   try {
-    console.log(
-      `🎯 [DEBUG] markAllAsCompleted called for assignment ${assignmentId}, student ${studentId} by user ${
-        user?.userId || "undefined"
-      }`
-    );
-
     if (!user || !user.userId) {
       res.status(401).json({ message: "User not authenticated" });
       return;
@@ -1002,10 +927,6 @@ export const markAllAsCompleted = async (
       },
     });
 
-    console.log(
-      `✅ [DEBUG] Marked ${submissions.count} submissions as manually completed for student ${studentId} in assignment ${assignmentId}`
-    );
-
     res.status(200).json({
       message: `Successfully marked all ${submissions.count} problems as manually completed`,
       updatedCount: submissions.count,
@@ -1022,13 +943,9 @@ export const markAllAsCompleted = async (
       return;
     }
 
-    console.error(
-      `❌ [DEBUG] Error marking all as manually completed for assignment ${assignmentId}, student ${studentId}:`,
-      dbError
-    );
+    logger.error("Error marking submissions as manually completed");
     res.status(500).json({
       message: "Error marking all problems as manually completed",
-      error: dbError,
     });
   }
 };
@@ -1066,8 +983,6 @@ export const extractProblemFromUrl = async (
       return;
     }
 
-    console.log(`Extracting problem details from URL: ${url}`);
-
     const problemDetails = await extractProblemDetailsFromUrl(url);
 
     if (!problemDetails) {
@@ -1101,11 +1016,10 @@ export const extractProblemFromUrl = async (
         url: url,
       },
     });
-  } catch (error) {
-    console.error("Error extracting problem details:", error);
+  } catch {
+    logger.error("Error extracting problem details from URL");
     res.status(500).json({
       message: "Error extracting problem details from URL",
-      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
@@ -1143,11 +1057,7 @@ export const debugExtractProblemFromUrl = async (
       return;
     }
 
-    console.log(`[DEBUG] Extracting problem details from URL: ${url}`);
-
     const problemDetails = await extractProblemDetailsFromUrl(url);
-
-    console.log(`[DEBUG] Extraction result:`, problemDetails);
 
     if (!problemDetails) {
       res.status(404).json({
@@ -1189,16 +1099,10 @@ export const debugExtractProblemFromUrl = async (
         timestamp: new Date().toISOString(),
       },
     });
-  } catch (error) {
-    console.error("[DEBUG] Error extracting problem details:", error);
+  } catch {
+    logger.error("Debug extract problem details failed");
     res.status(500).json({
       message: "Error extracting problem details from URL",
-      error: error instanceof Error ? error.message : "Unknown error",
-      debug: {
-        url: req.body.url,
-        timestamp: new Date().toISOString(),
-        stack: error instanceof Error ? error.stack : undefined,
-      },
     });
   }
 };

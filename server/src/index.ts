@@ -82,10 +82,10 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Debug middleware to log incoming requests (only in development)
+// Debug middleware (development only; avoid logging client origins or headers)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    logger.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
+    logger.log(`${req.method} ${req.path}`);
     next();
   });
 }

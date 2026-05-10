@@ -191,12 +191,6 @@ const CreateTestPage: React.FC = () => {
     const istStartTime = getCurrentLocalTime();
     const istEndTime = calculateEndTime(istStartTime, 120); // Use the initial duration value
     
-    console.log('Initial time setup:', {
-      currentIST: istStartTime,
-      calculatedEndTime: istEndTime,
-      duration: 120
-    });
-    
     setFormData(prev => ({
       ...prev,
       startTime: istStartTime,
@@ -239,16 +233,7 @@ const CreateTestPage: React.FC = () => {
     const minutes = String(end.getMinutes()).padStart(2, '0');
     
     const result = `${year}-${month}-${day}T${hours}:${minutes}`;
-    
-    // Debug logging
-    console.log('calculateEndTime:', {
-      startTime,
-      duration,
-      startDate: start.toISOString(),
-      endDate: end.toISOString(),
-      result
-    });
-    
+
     return result;
   };
 
@@ -416,8 +401,7 @@ const CreateTestPage: React.FC = () => {
         navigate('/tests');
       } else {
         const errorData = await response.json();
-        console.error('Server validation error:', errorData);
-        
+
         if (errorData.details && Array.isArray(errorData.details)) {
           // Show specific validation errors
           const validationErrors = errorData.details.map((detail: any) => 
@@ -429,7 +413,6 @@ const CreateTestPage: React.FC = () => {
         throw new Error(errorData.error || 'Failed to create test');
       }
     } catch (error) {
-      console.error('Error saving test:', error);
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to save test.',

@@ -92,12 +92,10 @@ const TestsPage: React.FC = () => {
 
   const handleEditTest = (testId: string) => {
     // Navigate to edit page (will be implemented)
-    console.log('Edit test:', testId);
   };
 
   const handleDeleteTest = (testId: string) => {
     // Show confirmation and delete (will be implemented)
-    console.log('Delete test:', testId);
   };
 
   const handleViewTest = (testId: string) => {
