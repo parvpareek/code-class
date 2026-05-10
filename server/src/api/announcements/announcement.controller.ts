@@ -6,8 +6,7 @@ import prisma from '../../lib/prisma';
 export const createAnnouncement = async (req: Request, res: Response): Promise<void> => {
     const { classId } = req.params;
     const { content } = req.body;
-    // @ts-expect-error: req.user is added by the protect middleware
-    const { userId } = req.user;
+    const { userId } = req.user!;
 
     try {
         const isTeacherAuthorized = await checkTeacherAuthorization(userId, classId);
@@ -77,8 +76,7 @@ export const getClassAnnouncements = async (req: Request, res: Response): Promis
 
 export const deleteAnnouncement = async (req: Request, res: Response): Promise<void> => {
     const { announcementId } = req.params;
-    // @ts-expect-error: req.user is added by the protect middleware
-    const { userId, role } = req.user;
+    const { userId, role } = req.user!;
 
     try {
         const announcement = await prisma.announcement.findUnique({

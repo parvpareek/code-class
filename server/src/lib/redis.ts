@@ -1,4 +1,5 @@
 import { Redis } from 'ioredis';
+import { logger } from '../utils/logger';
 
 /** In-process fallback when Redis is unavailable (single-instance only). */
 class MemoryRedis {
@@ -75,10 +76,10 @@ const useMemory =
 let redisClient: Redis;
 
 if (useMemory) {
-  console.log('Using in-memory Redis substitute (DISABLE_REDIS / USE_MEMORY_REDIS). Not suitable for multi-instance.');
+  logger.warn('Using in-memory Redis substitute (DISABLE_REDIS / USE_MEMORY_REDIS). Not suitable for multi-instance.');
   redisClient = new MemoryRedis() as unknown as Redis;
 } else if (process.env.REDIS_URL) {
-  console.log('Initializing Redis client');
+  logger.log('Initializing Redis client');
 
   const connectionOptions: {
     maxRetriesPerRequest: number;
@@ -96,7 +97,7 @@ if (useMemory) {
     lazyConnect: true,
     retryStrategy(times: number) {
       if (times > 3) {
-        console.error('Redis max retries reached, giving up');
+        logger.error('Redis max retries reached, giving up');
         return null;
       }
       return Math.min(times * 50, 2000);
@@ -113,7 +114,7 @@ if (useMemory) {
   const redisPort = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;
   const redisPassword = process.env.REDIS_PASSWORD || undefined;
 
-  console.log('Initializing Redis client');
+  logger.log('Initializing Redis client');
 
   redisClient = new Redis({
     host: redisHost,
@@ -126,7 +127,7 @@ if (useMemory) {
     lazyConnect: true,
     retryStrategy(times) {
       if (times > 3) {
-        console.error('Redis max retries reached, giving up');
+        logger.error('Redis max retries reached, giving up');
         return null;
       }
       return Math.min(times * 50, 2000);
@@ -136,24 +137,24 @@ if (useMemory) {
 
 if (!useMemory) {
   redisClient.on('connect', () => {
-    console.log('✅ Redis client connected');
+    logger.log('✅ Redis client connected');
   });
 
   redisClient.on('error', (err) => {
-    console.error('❌ Redis client connection error:', err);
+    logger.error('❌ Redis client connection error:', err);
   });
 }
 
 process.on('SIGTERM', () => {
   if (!useMemory) {
-    console.log('SIGTERM received, closing Redis connection...');
+    logger.log('SIGTERM received, closing Redis connection...');
     redisClient.quit();
   }
 });
 
 process.on('SIGINT', () => {
   if (!useMemory) {
-    console.log('SIGINT received, closing Redis connection...');
+    logger.log('SIGINT received, closing Redis connection...');
     redisClient.quit();
   }
 });

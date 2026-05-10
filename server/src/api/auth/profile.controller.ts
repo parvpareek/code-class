@@ -7,11 +7,10 @@ import { sanitizeUser } from '../../utils/user-sanitization';
 import { logger } from '../../utils/logger';
 
 export const getProfile = async (req: Request, res: Response): Promise<void> => {
-  // @ts-ignore
-  const userId = req.user.userId;
+  const userId = req.user!.userId;
 
   try {
-    const user = await (prisma as any).user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -47,8 +46,7 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
 };
 
 export const updateProfile = async (req: Request, res: Response): Promise<void> => {
-  // @ts-ignore
-  const userId = req.user.userId;
+  const userId = req.user!.userId;
   const { hackerrankUsername, gfgUsername, leetcodeUsername } = req.body;
 
   try {
@@ -68,8 +66,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
 };
 
 export const linkLeetCodeCredentials = async (req: Request, res: Response): Promise<void> => {
-  // @ts-ignore
-  const userId = req.user.userId;
+  const userId = req.user!.userId;
   const { leetcodeCookie } = req.body;
 
   if (!leetcodeCookie) {
@@ -163,8 +160,7 @@ export const linkLeetCodeCredentials = async (req: Request, res: Response): Prom
  * Add or update Gemini API key for a teacher
  */
 export const updateGeminiKey = async (req: Request, res: Response): Promise<void> => {
-  // @ts-ignore
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
   const { apiKey } = req.body;
 
   // Only teachers can add Gemini API keys
@@ -197,7 +193,7 @@ export const updateGeminiKey = async (req: Request, res: Response): Promise<void
     const encryptedKey = await encryptGeminiKey(apiKey.trim());
 
     // Update user with encrypted key
-    await (prisma as any).user.update({
+    await prisma.user.update({
       where: { id: userId },
       data: {
         geminiApiKey: encryptedKey,
@@ -230,8 +226,7 @@ export const updateGeminiKey = async (req: Request, res: Response): Promise<void
  * Remove Gemini API key for a teacher
  */
 export const removeGeminiKey = async (req: Request, res: Response): Promise<void> => {
-  // @ts-ignore
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   // Only teachers can remove Gemini API keys
   if (role !== 'TEACHER') {
@@ -243,7 +238,7 @@ export const removeGeminiKey = async (req: Request, res: Response): Promise<void
 
   try {
     // Update user status
-    await (prisma as any).user.update({
+    await prisma.user.update({
       where: { id: userId },
       data: {
         geminiApiKey: null,
@@ -268,8 +263,7 @@ export const removeGeminiKey = async (req: Request, res: Response): Promise<void
  * Get Gemini key status for a teacher
  */
 export const getGeminiStatus = async (req: Request, res: Response): Promise<void> => {
-  // @ts-ignore
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   // Only teachers can check Gemini API key status
   if (role !== 'TEACHER') {
@@ -280,7 +274,7 @@ export const getGeminiStatus = async (req: Request, res: Response): Promise<void
   }
 
   try {
-    const user = await (prisma as any).user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         geminiKeyStatus: true,
@@ -348,8 +342,7 @@ async function encryptGeminiKey(apiKey: string): Promise<string> {
 }
 
 export const linkHackerRankCredentials = async (req: Request, res: Response): Promise<void> => {
-  // @ts-ignore
-  const userId = req.user.userId;
+  const userId = req.user!.userId;
   const { hackerrankCookie } = req.body;
 
   if (!hackerrankCookie) {
@@ -376,7 +369,7 @@ export const linkHackerRankCredentials = async (req: Request, res: Response): Pr
     }
 
     // If successful, save the cookie and update status
-    const updatedUser = await (prisma as any).user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         hackerrankCookie,
@@ -419,8 +412,7 @@ export const linkHackerRankCredentials = async (req: Request, res: Response): Pr
 };
 
 export const linkGfgCredentials = async (req: Request, res: Response): Promise<void> => {
-  // @ts-ignore
-  const userId = req.user.userId;
+  const userId = req.user!.userId;
   const { gfgCookie } = req.body;
 
   if (!gfgCookie) {
@@ -464,7 +456,7 @@ export const linkGfgCredentials = async (req: Request, res: Response): Promise<v
     }
 
     // If successful, save the cookie and update status
-    const updatedUser = await (prisma as any).user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         gfgCookie,

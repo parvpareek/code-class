@@ -1,3 +1,5 @@
+import axios from 'axios';
+import { getApiV1BaseUrl } from '../config/apiBase';
 import adminApi from './admin-axios';
 
 export interface AdminLoginResponse {
@@ -110,31 +112,10 @@ export interface SystemMetrics {
   };
 }
 
-import axios from 'axios';
-
-// Admin login doesn't require token
-const getBaseURL = () => {
-  const envURL = import.meta.env.VITE_API_URL;
-  if (envURL) {
-    if (envURL.endsWith('/api/v1')) {
-      return envURL;
-    } else if (envURL.endsWith('/')) {
-      return envURL + 'api/v1';
-    } else {
-      return envURL + '/api/v1';
-    }
-  }
-  return 'https://codeclass.up.railway.app/api/v1';
-};
-
-// Admin authentication (no token required)
 export const adminLogin = async (password: string): Promise<AdminLoginResponse> => {
-  const response = await axios.post(`${getBaseURL()}/admin/login`, { password });
+  const response = await axios.post(`${getApiV1BaseUrl()}/admin/login`, { password });
   return response.data;
 };
-
-// All other admin endpoints use adminApi
-import adminApi from './admin-axios';
 
 export const adminLogout = async (): Promise<void> => {
   await adminApi.post('/admin/logout');

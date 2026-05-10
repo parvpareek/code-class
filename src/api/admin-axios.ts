@@ -1,26 +1,8 @@
 import axios from 'axios';
-
-// Separate axios instance for admin API calls
-// Uses adminToken from localStorage instead of regular token
-
-const getBaseURL = () => {
-  const envURL = import.meta.env.VITE_API_URL;
-  
-  if (envURL) {
-    if (envURL.endsWith('/api/v1')) {
-      return envURL;
-    } else if (envURL.endsWith('/')) {
-      return envURL + 'api/v1';
-    } else {
-      return envURL + '/api/v1';
-    }
-  }
-  
-  return 'https://codeclass.up.railway.app/api/v1';
-};
+import { getApiV1BaseUrl } from '../config/apiBase';
 
 const adminApi = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: getApiV1BaseUrl(),
 });
 
 // Interceptor to add admin JWT token to request headers

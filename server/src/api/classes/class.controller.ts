@@ -3,6 +3,7 @@ import prisma from '../../lib/prisma';
 import { customAlphabet } from 'nanoid';
 import { Prisma } from '@prisma/client';
 import { checkAuthorizationForClass, checkTeacherAuthorization } from '../../services/authorization.service';
+import { checkClassSubmissionStatus as checkClassSubmissionStatusService } from '../../services/submission.service';
 import redisClient from '../../lib/redis';
 
 // Generate a unique 6-character code for joining a class
@@ -41,8 +42,7 @@ interface AssignmentWithProblems {
 
 export const createClass = async (req: Request, res: Response): Promise<void> => {
   const { name } = req.body;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const teacherId = req.user.userId;
+  const teacherId = req.user!.userId;
 
   try {
     // Create class and add teacher to UsersOnClasses for archive tracking
@@ -74,8 +74,7 @@ export const createClass = async (req: Request, res: Response): Promise<void> =>
 
 export const joinClass = async (req: Request, res: Response): Promise<void> => {
   const { joinCode } = req.body;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId } = req.user;
+  const { userId } = req.user!;
 
   console.log(`[DEBUG] Student ${userId} attempting to join class with code: ${joinCode}`);
 
@@ -198,8 +197,7 @@ export const joinClass = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const getClasses = async (req: Request, res: Response): Promise<void> => {
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   try {
     // Both teachers and students now use UsersOnClasses for archive tracking
@@ -252,8 +250,7 @@ export const getClasses = async (req: Request, res: Response): Promise<void> => 
 
 export const getClassAssignments = async (req: Request, res: Response): Promise<void> => {
   const { classId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   try {
     const isAuthorized = await checkAuthorizationForClass(userId, classId);
@@ -368,8 +365,7 @@ export const getClassAssignments = async (req: Request, res: Response): Promise<
 
 export const getClassDetails = async (req: Request, res: Response): Promise<void> => {
   const { classId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId } = req.user;
+  const { userId } = req.user!;
   try {
     const isAuthorized = await checkAuthorizationForClass(userId, classId);
     if (!isAuthorized) {
@@ -423,8 +419,7 @@ export const getClassDetails = async (req: Request, res: Response): Promise<void
 export const updateClass = async (req: Request, res: Response): Promise<void> => {
   const { classId } = req.params;
   const { name, description } = req.body as { name?: string; description?: string };
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   if (role !== 'TEACHER') {
     res.status(403).json({ message: 'Only teachers can update classes.' });
@@ -474,8 +469,7 @@ export const updateClass = async (req: Request, res: Response): Promise<void> =>
 
 export const deleteClass = async (req: Request, res: Response): Promise<void> => {
   const { classId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
   const isTeacherAuthorized = await checkTeacherAuthorization(userId, classId);
 
   if (role !== 'TEACHER' || !isTeacherAuthorized) {
@@ -555,8 +549,7 @@ export const deleteClass = async (req: Request, res: Response): Promise<void> =>
  */
 export const leaveClass = async (req: Request, res: Response): Promise<void> => {
   const { classId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   if (role !== 'STUDENT') {
     res.status(403).json({ message: 'Only students can leave classes.' });
@@ -632,8 +625,7 @@ export const leaveClass = async (req: Request, res: Response): Promise<void> => 
  */
 export const removeStudentFromClass = async (req: Request, res: Response): Promise<void> => {
   const { classId, studentId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
   const isTeacherAuthorized = await checkTeacherAuthorization(userId, classId);
 
   if (role !== 'TEACHER' || !isTeacherAuthorized) {
@@ -723,8 +715,7 @@ export const removeStudentFromClass = async (req: Request, res: Response): Promi
  */
 export const archiveClass = async (req: Request, res: Response): Promise<void> => {
   const { classId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId } = req.user;
+  const { userId } = req.user!;
 
   try {
     // Check if enrollment exists
@@ -765,8 +756,7 @@ export const archiveClass = async (req: Request, res: Response): Promise<void> =
  */
 export const unarchiveClass = async (req: Request, res: Response): Promise<void> => {
   const { classId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId } = req.user;
+  const { userId } = req.user!;
 
   try {
     // Unarchive the class for this user only
@@ -791,8 +781,7 @@ export const unarchiveClass = async (req: Request, res: Response): Promise<void>
  * Get archived classes - works same for both teachers and students
  */
 export const getArchivedClasses = async (req: Request, res: Response): Promise<void> => {
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   try {
     // Get all classes this user has archived
@@ -840,5 +829,33 @@ export const getArchivedClasses = async (req: Request, res: Response): Promise<v
   } catch (error) {
     console.error('Error fetching archived classes:', error);
     res.status(500).json({ message: 'Error fetching archived classes', error });
+  }
+};
+
+export const checkClassSubmissionStatus = async (req: Request, res: Response): Promise<void> => {
+  const { classId } = req.params;
+  const { userId, role } = req.user!;
+
+  try {
+    const isTeacherAuthorized = await checkTeacherAuthorization(userId, classId);
+
+    if (role !== 'TEACHER' || !isTeacherAuthorized) {
+      res.status(403).json({ message: 'Only teachers can check class submission status' });
+      return;
+    }
+
+    console.log(`📊 Checking submission status for class: ${classId}`);
+    const statusReport = await checkClassSubmissionStatusService(classId);
+
+    res.status(200).json({
+      message: 'Class submission status check completed',
+      data: statusReport,
+    });
+  } catch (error) {
+    console.error('Error checking class submission status:', error);
+    res.status(500).json({
+      message: 'Failed to check class submission status',
+      error: (error as Error).message,
+    });
   }
 };

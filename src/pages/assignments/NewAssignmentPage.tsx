@@ -6,7 +6,7 @@ import { createAssignment, extractProblemFromUrl } from '../../api/assignments';
 import { getClasses } from '../../api/classes';
 import { Class } from '../../types';
 import { useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 import {
   Form,
   FormControl,
@@ -267,7 +267,7 @@ const NewAssignmentPage = () => {
           setTeacherClasses(Array.isArray(classes) ? classes : []);
         } catch (error) {
           console.error('Failed to fetch classes', error);
-          toast.error('Could not load your classes.');
+          toast({ title: 'Could not load your classes.', variant: 'destructive' });
         }
       };
       fetchClasses();
@@ -293,12 +293,12 @@ const NewAssignmentPage = () => {
           difficulty: p.difficulty
         }))
       });
-      toast.success('Assignment created successfully!');
+      toast({ title: 'Assignment created successfully!' });
       // Navigate to the newly created assignment page
       navigate(`/assignments/${newAssignment.id}`);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to create assignment.');
+      toast({ title: 'Failed to create assignment.', variant: 'destructive' });
     }
   };
 
@@ -309,7 +309,7 @@ const NewAssignmentPage = () => {
       .filter(url => url.length > 0);
     
     if (urls.length === 0) {
-      toast.error('Please paste some URLs first (one per line)');
+      toast({ title: 'Please paste some URLs first (one per line)', variant: 'destructive' });
       return;
     }
 
@@ -324,7 +324,10 @@ const NewAssignmentPage = () => {
     });
 
     if (invalidUrls.length > 0) {
-      toast.error(`Invalid URLs found: ${invalidUrls.slice(0, 3).join(', ')}${invalidUrls.length > 3 ? '...' : ''}`);
+      toast({
+        title: `Invalid URLs found: ${invalidUrls.slice(0, 3).join(', ')}${invalidUrls.length > 3 ? '...' : ''}`,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -390,13 +393,18 @@ const NewAssignmentPage = () => {
     const failedCount = problems.filter(p => p.status === 'failed').length;
     
     if (successCount > 0 && failedCount === 0) {
-      toast.success(`🎉 Successfully extracted ${successCount} problems! Review and create assignment.`, {
-        duration: 2000
+      toast({
+        title: `🎉 Successfully extracted ${successCount} problems! Review and create assignment.`,
       });
     } else if (successCount > 0 && failedCount > 0) {
-      toast.warning(`📊 Extracted ${successCount} problems, ${failedCount} failed. Please edit the failed ones.`);
+      toast({
+        title: `📊 Extracted ${successCount} problems, ${failedCount} failed. Please edit the failed ones.`,
+      });
     } else {
-      toast.error('❌ Could not extract any problem titles. Please edit them manually.');
+      toast({
+        title: '❌ Could not extract any problem titles. Please edit them manually.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -426,7 +434,7 @@ const NewAssignmentPage = () => {
     };
     form.setValue('problems', currentProblems);
 
-    toast.success('Problem updated!');
+    toast({ title: 'Problem updated!' });
   };
 
   const cancelProblemEdit = (index: number) => {

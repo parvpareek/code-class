@@ -1,9 +1,17 @@
 import axios from 'axios';
-import { PrismaClient, Submission, User, Problem } from '@prisma/client';
+import { Submission, User, Problem } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { groupBy } from '../utils/array.utils';
-import { syncAllLinkedLeetCodeUsers, forceCheckLeetCodeSubmissionsForAssignment } from './enhanced-leetcode.service';
-import { syncAllLinkedHackerRankUsers, forceCheckHackerRankSubmissionsForAssignment } from './hackerrank.service';
+import {
+  syncAllLinkedLeetCodeUsers,
+  forceCheckLeetCodeSubmissionsForAssignment,
+  fetchLeetCodeStatsAndSubmissions,
+} from './enhanced-leetcode.service';
+import {
+  syncAllLinkedHackerRankUsers,
+  forceCheckHackerRankSubmissionsForAssignment,
+  fetchHackerRankStatsAndSubmissions,
+} from './hackerrank.service';
 
 type GfgPracticeApiUserProblemsSubmissionsRequest = {
   handle: string;
@@ -221,13 +229,19 @@ const processGfgSubmissions = async (
         
         console.log(`👤 Processing ${userSubmissions.length} GFG submissions for user: ${user.name} (${user.email})`);
 
-        // Get user with cookie status
-        const fullUser = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { gfgCookie: true, gfgCookieStatus: true }
-        });
+        const uRow = user as User & { gfgCookie?: string | null; gfgCookieStatus?: string | null };
+        let gfgCookie: string | null | undefined = uRow.gfgCookie;
+        let gfgCookieStatus: string | null | undefined = uRow.gfgCookieStatus;
+        if (gfgCookie === undefined && gfgCookieStatus === undefined) {
+          const creds = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { gfgCookie: true, gfgCookieStatus: true },
+          });
+          gfgCookie = creds?.gfgCookie ?? null;
+          gfgCookieStatus = creds?.gfgCookieStatus ?? null;
+        }
 
-        const hasCookie = fullUser?.gfgCookie && fullUser?.gfgCookieStatus === 'LINKED';
+        const hasCookie = !!gfgCookie && gfgCookieStatus === 'LINKED';
 
         if (hasCookie) {
           console.log(`🔑 Using cookie-based API for ${user.name} (exact timestamps)`);
@@ -238,6 +252,8 @@ const processGfgSubmissions = async (
         // Process each GFG submission
         let updatedCount = 0;
         let cookieExpired = false;
+        /** Lazy-loaded once per user when bulk API is needed (avoids N identical HTTP calls). */
+        let bulkSolvedSlugs: Set<string> | null = null;
 
         for (const submission of userSubmissions) {
             const { problem } = submission;
@@ -248,9 +264,9 @@ const processGfgSubmissions = async (
             let isCompleted = false;
 
             // Try cookie-based API first if available
-            if (hasCookie && !cookieExpired && fullUser?.gfgCookie) {
+            if (hasCookie && !cookieExpired && gfgCookie) {
               try {
-                const result = await getGfgProblemSubmission(problemSlug, fullUser.gfgCookie);
+                const result = await getGfgProblemSubmission(problemSlug, gfgCookie);
                 if (result && result.isCorrect) {
                   isCompleted = true;
                   submissionTime = result.submissionTime;
@@ -272,10 +288,12 @@ const processGfgSubmissions = async (
               }
             }
 
-            // Fallback to bulk API if no cookie or cookie failed
+            // Fallback to bulk API if no cookie or cookie failed (one fetch per user)
             if (!isCompleted) {
-              const gfgSolved = await getAllGfgSolvedSlugs(user.gfgUsername);
-              isCompleted = gfgSolved.has(problemSlug);
+              if (bulkSolvedSlugs === null) {
+                bulkSolvedSlugs = await getAllGfgSolvedSlugs(user.gfgUsername);
+              }
+              isCompleted = bulkSolvedSlugs.has(problemSlug);
               if (isCompleted) {
                 console.log(`✅ Found in bulk API (no exact timestamp)`);
               }
@@ -376,6 +394,7 @@ export const checkAllSubmissions = async () => {
                         id: true,
                         url: true,
                         title: true,
+                        platform: true,
                     },
                 },
             },
@@ -406,10 +425,21 @@ export const checkSubmissionsForAssignment = async (assignmentId: string, userId
     console.log(`🎯 Starting submission check for assignment: ${assignmentId}...`);
     let totalUpdatedCount = 0;
     
-    // Get assignment details for better logging
     const assignment = await prisma.assignment.findUnique({
         where: { id: assignmentId },
-        include: { problems: true }
+        select: {
+            id: true,
+            title: true,
+            problems: {
+                select: {
+                    id: true,
+                    platform: true,
+                    url: true,
+                    title: true,
+                    assignmentId: true,
+                },
+            },
+        },
     });
     
     if (!assignment) {
@@ -420,10 +450,10 @@ export const checkSubmissionsForAssignment = async (assignmentId: string, userId
     console.log(`📋 Assignment: "${assignment.title}" with ${assignment.problems.length} problems`);
     
     // Show platform breakdown
-    const leetcodeProblems = assignment.problems.filter((p: any) => p.platform.toLowerCase() === 'leetcode');
-    const hackerrankProblems = assignment.problems.filter((p: any) => p.platform.toLowerCase() === 'hackerrank');
-    const gfgProblems = assignment.problems.filter((p: any) => p.platform.toLowerCase() === 'gfg');
-    const otherProblems = assignment.problems.filter((p: any) => !['leetcode', 'hackerrank', 'gfg'].includes(p.platform.toLowerCase()));
+    const leetcodeProblems = assignment.problems.filter((p) => p.platform.toLowerCase() === 'leetcode');
+    const hackerrankProblems = assignment.problems.filter((p) => p.platform.toLowerCase() === 'hackerrank');
+    const gfgProblems = assignment.problems.filter((p) => p.platform.toLowerCase() === 'gfg');
+    const otherProblems = assignment.problems.filter((p) => !['leetcode', 'hackerrank', 'gfg'].includes(p.platform.toLowerCase()));
     
     console.log(`📊 Platform breakdown: ${leetcodeProblems.length} LeetCode, ${hackerrankProblems.length} HackerRank, ${gfgProblems.length} GFG, ${otherProblems.length} other`);
     
@@ -454,18 +484,37 @@ export const checkSubmissionsForAssignment = async (assignmentId: string, userId
                 completed: false,
                 ...(userId && { userId }),
             },
-            include: { 
-                user: true, 
+            select: {
+                id: true,
+                userId: true,
+                problemId: true,
+                completed: true,
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        gfgUsername: true,
+                        gfgCookie: true,
+                        gfgCookieStatus: true,
+                    },
+                },
                 problem: {
-                    include: {
-                        assignment: true
-                    }
-                }
+                    select: {
+                        id: true,
+                        url: true,
+                        title: true,
+                        platform: true,
+                        assignment: {
+                            select: { assignDate: true, dueDate: true },
+                        },
+                    },
+                },
             },
         });
         
         console.log(`Found ${pendingSubmissions.length} pending submissions for assignment ${assignmentId}`);
-        totalUpdatedCount += await processGfgSubmissions(pendingSubmissions);
+        totalUpdatedCount += await processGfgSubmissions(pendingSubmissions as any);
     } else {
         console.log('⏭️ No GFG problems in this assignment - skipping GFG processing');
     }
@@ -482,7 +531,7 @@ export const checkClassSubmissionStatus = async (classId: string) => {
     console.log(`🎯 Starting submission status check for class: ${classId}...`);
     
     try {
-        // Get all students in the class
+        // Students only — no assignments/problems (not used for credential checks; saves memory + DB work)
         const classData = await prisma.class.findUnique({
             where: { id: classId },
             include: {
@@ -494,20 +543,18 @@ export const checkClassSubmissionStatus = async (classId: string) => {
                                 name: true,
                                 email: true,
                                 leetcodeUsername: true,
+                                leetcodeCookie: true,
                                 leetcodeCookieStatus: true,
+                                leetcodeTotalSolved: true,
                                 hackerrankUsername: true,
+                                hackerrankCookie: true,
                                 hackerrankCookieStatus: true,
                                 gfgUsername: true,
-                            }
-                        }
-                    }
+                            },
+                        },
+                    },
                 },
-                assignments: {
-                    include: {
-                        problems: true
-                    }
-                }
-            }
+            },
         });
 
         if (!classData) {
@@ -555,31 +602,14 @@ export const checkClassSubmissionStatus = async (classId: string) => {
             if (student.leetcodeUsername && student.leetcodeCookieStatus === 'LINKED') {
                 try {
                     console.log(`📱 Testing LeetCode for ${student.name}...`);
-                    // Get user with cookie for testing
-                    const userWithCookie = await prisma.user.findUnique({
-                        where: { id: student.id },
-                        select: { leetcodeCookie: true }
-                    });
-
-                    if (userWithCookie?.leetcodeCookie) {
-                        // Get full user object for the service
-                        const fullUser = await prisma.user.findUnique({
-                            where: { id: student.id }
-                        });
-                        
-                        if (fullUser) {
-                            // Import the function from enhanced-leetcode.service
-                            const { fetchLeetCodeStatsAndSubmissions } = await import('./enhanced-leetcode.service');
-                            const result = await fetchLeetCodeStatsAndSubmissions({
-                                ...fullUser,
-                                leetcodeCookieStatus: student.leetcodeCookieStatus,
-                                leetcodeTotalSolved: null
-                            });
-                            platformStatus.platforms.leetcode.isWorking = result;
-                            if (!result) {
-                                platformStatus.platforms.leetcode.lastError = 'Failed to fetch data - cookie may be expired';
-                            }
+                    if (student.leetcodeCookie) {
+                        const result = await fetchLeetCodeStatsAndSubmissions(student as User);
+                        platformStatus.platforms.leetcode.isWorking = result;
+                        if (!result) {
+                            platformStatus.platforms.leetcode.lastError = 'Failed to fetch data - cookie may be expired';
                         }
+                    } else {
+                        platformStatus.platforms.leetcode.lastError = 'Cookie not stored';
                     }
                 } catch (error) {
                     console.error(`❌ LeetCode test failed for ${student.name}:`, error);
@@ -596,30 +626,14 @@ export const checkClassSubmissionStatus = async (classId: string) => {
             if (student.hackerrankUsername && student.hackerrankCookieStatus === 'LINKED') {
                 try {
                     console.log(`🔶 Testing HackerRank for ${student.name}...`);
-                    // Get user with cookie for testing
-                    const userWithCookie = await prisma.user.findUnique({
-                        where: { id: student.id },
-                        select: { hackerrankCookie: true }
-                    });
-
-                    if (userWithCookie?.hackerrankCookie) {
-                        // Get full user object for the service
-                        const fullUser = await prisma.user.findUnique({
-                            where: { id: student.id }
-                        });
-                        
-                        if (fullUser) {
-                            // Import the function from hackerrank.service
-                            const { fetchHackerRankStatsAndSubmissions } = await import('./hackerrank.service');
-                            const result = await fetchHackerRankStatsAndSubmissions({
-                                ...fullUser,
-                                hackerrankCookieStatus: student.hackerrankCookieStatus
-                            });
-                            platformStatus.platforms.hackerrank.isWorking = result;
-                            if (!result) {
-                                platformStatus.platforms.hackerrank.lastError = 'Failed to fetch data - cookie may be expired';
-                            }
+                    if (student.hackerrankCookie) {
+                        const result = await fetchHackerRankStatsAndSubmissions(student as User);
+                        platformStatus.platforms.hackerrank.isWorking = result;
+                        if (!result) {
+                            platformStatus.platforms.hackerrank.lastError = 'Failed to fetch data - cookie may be expired';
                         }
+                    } else {
+                        platformStatus.platforms.hackerrank.lastError = 'Cookie not stored';
                     }
                 } catch (error) {
                     console.error(`❌ HackerRank test failed for ${student.name}:`, error);

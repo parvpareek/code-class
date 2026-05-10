@@ -26,8 +26,7 @@ interface BulkUpdateItem {
 // Get user's DSA progress
 export const getUserDSAProgress = async (req: Request, res: Response) => {
   try {
-    // @ts-expect-error: req.user is added by the protect middleware
-    const userId = req.user?.id;
+    const userId = req.user!.userId;
     
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });
@@ -61,8 +60,7 @@ export const getUserDSAProgress = async (req: Request, res: Response) => {
 // Update question completion status
 export const updateQuestionCompletion = async (req: Request, res: Response) => {
   try {
-    // @ts-expect-error: req.user is added by the protect middleware
-    const userId = req.user?.id;
+    const userId = req.user!.userId;
     const { questionId } = req.params;
     const { isCompleted } = req.body;
 
@@ -104,8 +102,7 @@ export const updateQuestionCompletion = async (req: Request, res: Response) => {
 // Update question revision status
 export const updateQuestionRevision = async (req: Request, res: Response) => {
   try {
-    // @ts-expect-error: req.user is added by the protect middleware
-    const userId = req.user?.id;
+    const userId = req.user!.userId;
     const { questionId } = req.params;
     const { isRevision } = req.body;
 
@@ -145,8 +142,7 @@ export const updateQuestionRevision = async (req: Request, res: Response) => {
 // Update question notes
 export const updateQuestionNotes = async (req: Request, res: Response) => {
   try {
-    // @ts-expect-error: req.user is added by the protect middleware
-    const userId = req.user?.id;
+    const userId = req.user!.userId;
     const { questionId } = req.params;
     const { notes } = req.body;
 
@@ -186,8 +182,7 @@ export const updateQuestionNotes = async (req: Request, res: Response) => {
 // Get DSA statistics
 export const getDSAStatistics = async (req: Request, res: Response) => {
   try {
-    // @ts-expect-error: req.user is added by the protect middleware
-    const userId = req.user?.id;
+    const userId = req.user!.userId;
     
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });
@@ -219,8 +214,7 @@ export const getDSAStatistics = async (req: Request, res: Response) => {
 // Bulk update progress (for import/sync operations)
 export const bulkUpdateProgress = async (req: Request, res: Response) => {
   try {
-    // @ts-expect-error: req.user is added by the protect middleware
-    const userId = req.user?.id;
+    const userId = req.user!.userId;
     const { updates } = req.body;
 
     if (!userId) {

@@ -5,7 +5,7 @@
  * Identifies what's consuming memory at startup
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -48,19 +48,21 @@ try {
   console.log('   ⚠️  Could not check index file');
 }
 
-// 3. Check WebSocket initialization
-console.log('\n3. WEBSOCKET INITIALIZATION:');
+// 3. WebSocket (removed from codebase — client uses HTTP only)
+console.log('\n3. WEBSOCKET:');
 try {
+  const wsService = join(__dirname, '..', 'src', 'services', 'websocket.service.ts');
   const content = readFileSync(indexFile, 'utf-8');
   if (content.includes('new WebSocketService')) {
     console.log('   ❌ WebSocket service initialized at startup');
-    console.log('   ⚠️  Socket.IO adds 50-80MB even with 0 connections');
-    console.log('   💡 Solution: Lazy-load WebSocket service on first connection');
+    console.log('   ⚠️  Socket.IO adds significant memory even with 0 connections');
+  } else if (existsSync(wsService)) {
+    console.log('   ⚠️  websocket.service.ts still present but not wired at startup');
   } else {
-    console.log('   ✅ WebSocket service is lazy-loaded');
+    console.log('   ✅ No WebSocket server module / startup wiring');
   }
 } catch (e) {
-  console.log('   ⚠️  Could not check WebSocket initialization');
+  console.log('   ⚠️  Could not check WebSocket status');
 }
 
 // 4. Check heavy dependencies
@@ -99,15 +101,15 @@ try {
 // 6. Recommendations
 console.log('\n' + '='.repeat(70));
 console.log('\n💡 ROOT CAUSE ANALYSIS:\n');
-console.log('The 500MB+ memory at startup is likely caused by:');
+console.log('High memory at startup is often caused by:');
 console.log('  1. Prisma Accelerate extension (if enabled) - 50-100MB');
-console.log('  2. Socket.IO initialized at startup - 50-80MB');
+console.log('  2. Socket.IO / other realtime libs kept as deps but idle');
 console.log('  3. All routes eager-loaded - 20-50MB');
 console.log('  4. Prisma generated client - 5-20MB');
 console.log('  5. Node.js base + dependencies - 100-200MB');
 console.log('\n🎯 QUICK FIXES (in order of impact):\n');
 console.log('  1. Remove Prisma Accelerate if not using it');
-console.log('  2. Lazy-load WebSocket service');
+console.log('  2. Drop unused realtime/socket deps if HTTP-only');
 console.log('  3. Consider lazy-loading routes');
 console.log('  4. Check if all dependencies are necessary');
 

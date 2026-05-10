@@ -1,6 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -45,7 +44,18 @@ import { StudentAnalyticsPage } from './pages/students/StudentAnalyticsPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 // Component to handle root route logic
 const RootRoute: React.FC = () => {
@@ -131,7 +141,6 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
-            <Sonner />
             <AppContent />
             <Analytics />
           </TooltipProvider>

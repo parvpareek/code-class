@@ -37,8 +37,7 @@ export const createAssignment = async (
 ): Promise<void> => {
   const { title, description, classId, assignDate, dueDate, problems } =
     req.body;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId } = req.user;
+  const { userId } = req.user!;
 
   try {
     const isTeacherAuthorized = await checkTeacherAuthorization(
@@ -175,8 +174,7 @@ export const getAssignmentById = async (
   res: Response
 ): Promise<void> => {
   const { assignmentId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   try {
     const assignment = await prisma.assignment.findUnique({
@@ -355,8 +353,7 @@ export const checkAssignmentSubmissions = async (
   res: Response
 ): Promise<void> => {
   const { assignmentId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   if (role !== "TEACHER") {
     res
@@ -392,8 +389,7 @@ export const checkMySubmissionsForAssignment = async (
   res: Response
 ): Promise<void> => {
   const { assignmentId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId } = req.user;
+  const { userId } = req.user!;
 
   try {
     const studentInfo = await prisma.studentAssignmentInfo.findUnique({
@@ -458,8 +454,7 @@ export const deleteAssignment = async (
   res: Response
 ): Promise<void> => {
   const { assignmentId } = req.params;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { userId, role } = req.user;
+  const { userId, role } = req.user!;
 
   if (role !== "TEACHER") {
     res.status(403).json({ message: "Only teachers can delete assignments." });
@@ -594,8 +589,7 @@ export const updateAssignment = async (
 ): Promise<void> => {
   const { assignmentId } = req.params;
   const { title, description, assignDate, dueDate, problems } = req.body;
-  // @ts-expect-error: req.user is added by the protect middleware
-  const { id: userId } = req.user;
+  const { userId } = req.user!;
 
   try {
     const isTeacherAuthorized = await checkTeacherAuthorizationForAssignment(
@@ -718,8 +712,7 @@ export const checkLeetCodeSubmissionsForAssignment = async (
 ): Promise<void> => {
   const { id } = req.params;
 
-  // @ts-expect-error: req.user is added by the protect middleware
-  const userId = req.user?.userId;
+  const userId = req.user!.userId;
 
   try {
     // Get the assignment and verify the user is the teacher
@@ -780,8 +773,7 @@ export const getMyAssignments = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  // @ts-expect-error: req.user is added by the protect middleware
-  const userId = req.user.userId;
+  const userId = req.user!.userId;
 
   try {
     // Get user's class IDs first
@@ -877,15 +869,9 @@ export const markAllAsCompleted = async (
   res: Response
 ): Promise<void> => {
   const { assignmentId, studentId } = req.params;
-  // @ts-expect-error - req.user is added by auth middleware
-  const user = req.user as { userId: string; role: string };
+  const user = req.user!;
 
   try {
-    if (!user || !user.userId) {
-      res.status(401).json({ message: "User not authenticated" });
-      return;
-    }
-
     // Only allow students to mark their own work as manually completed
     if (user.role !== "STUDENT") {
       res.status(403).json({

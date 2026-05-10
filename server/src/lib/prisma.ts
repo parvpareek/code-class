@@ -1,26 +1,42 @@
 import { PrismaClient } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
 
+/** Add pool hints for direct Postgres URLs only (Accelerate / prisma:// URLs left unchanged). */
+function resolveDatabaseUrl(): string | undefined {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return undefined;
+
+  const isDirectPostgres =
+    raw.startsWith('postgresql://') || raw.startsWith('postgres://');
+
+  if (!isDirectPostgres) {
+    return raw;
+  }
+
+  try {
+    const url = new URL(raw);
+    if (!url.searchParams.has('connection_limit')) {
+      url.searchParams.set('connection_limit', '10');
+      url.searchParams.set('pool_timeout', '10');
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+const databaseUrl = resolveDatabaseUrl();
+
 const prisma = new PrismaClient({
+  ...(databaseUrl ? { datasourceUrl: databaseUrl } : {}),
   log: ['error'],
   errorFormat: 'pretty',
 }).$extends(withAccelerate());
 
-// Configure connection pool limits (reduces memory footprint)
-// These limits prevent too many connections from being created
-if (process.env.DATABASE_URL) {
-  // Parse connection string and add pool parameters if not present
-  const url = new URL(process.env.DATABASE_URL);
-  if (!url.searchParams.has('connection_limit')) {
-    url.searchParams.set('connection_limit', '10'); // Limit to 10 connections
-    url.searchParams.set('pool_timeout', '10'); // 10 second timeout
-  }
-  // Note: Prisma will use these parameters automatically if in connection string
-}
-
 // Handle connection errors gracefully
-prisma.$connect().catch((error: any) => {
-  console.error('❌ Database connection failed:', error.message);
+prisma.$connect().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error('❌ Database connection failed:', message);
   console.log('⚠️  Server will continue without database functionality');
 });
 
@@ -39,4 +55,4 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-export default prisma; 
+export default prisma;

@@ -10,7 +10,7 @@ import SubmissionStatusGrid from '../../components/assignments/SubmissionStatusG
 import CompletionStats from '../../components/assignments/CompletionStats';
 import ProblemCompletionList from '../../components/assignments/ProblemCompletionList';
 import { Button } from '../../components/ui/button';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 import { RefreshCw, Pencil, CheckCircle2, Clock, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Progress } from '../../components/ui/progress';
@@ -47,7 +47,7 @@ const AssignmentDetailsPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to fetch assignment details', error);
-      toast.error('Failed to fetch assignment details.');
+      toast({ title: 'Failed to fetch assignment details.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -70,14 +70,14 @@ const AssignmentDetailsPage: React.FC = () => {
     try {
       const result = await checkSubmissionsForAssignment(assignmentId);
       const now = new Date().toLocaleTimeString();
-      toast.success(`Submission check complete at ${now}. Data has been updated.`);
+      toast({ title: `Submission check complete at ${now}. Data has been updated.` });
       await fetchAssignment(); // Refresh to get the updated lastSubmissionCheck
     } catch (error) {
       console.error('Failed to check submissions', error);
       if (isAxiosError(error) && error.response?.status === 403) {
-        toast.error('Only teachers can trigger submission checks.');
+        toast({ title: 'Only teachers can trigger submission checks.', variant: 'destructive' });
       } else {
-        toast.error('Failed to check submissions.');
+        toast({ title: 'Failed to check submissions.', variant: 'destructive' });
       }
     } finally {
       setIsChecking(false);
@@ -90,14 +90,14 @@ const AssignmentDetailsPage: React.FC = () => {
     setCooldown(cooldownDuration);
     try {
       const response = await checkMySubmissionsForAssignment(assignmentId);
-      toast.success(response.message || 'Checked for new submissions!');
+      toast({ title: response.message || 'Checked for new submissions!' });
       fetchAssignment();
     } catch (error) {
       console.error('Failed to check my submissions', error);
       if (isAxiosError(error) && error.response?.status === 429) {
-        toast.error('You can only check for new submissions once every 1 minute.');
+        toast({ title: 'You can only check for new submissions once every 1 minute.', variant: 'destructive' });
       } else {
-        toast.error('Failed to check your submissions.');
+        toast({ title: 'Failed to check your submissions.', variant: 'destructive' });
       }
     } finally {
       setIsChecking(false);

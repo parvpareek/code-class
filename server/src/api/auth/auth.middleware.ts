@@ -1,5 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import type { Role } from '@prisma/client';
+
+interface JwtAuthPayload {
+  userId: string;
+  role: Role;
+}
 
 export const protect = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const bearer = req.headers.authorization;
@@ -11,19 +17,17 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
 
   const token = bearer.split(' ')[1];
   try {
-    const user = jwt.verify(token, process.env.JWT_SECRET!);
-    // @ts-ignore
-    req.user = user;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtAuthPayload;
+    req.user = { userId: decoded.userId, role: decoded.role };
     next();
-  } catch (error) {
+  } catch {
     res.status(401).json({ message: 'Unauthorized' });
     return;
   }
 };
 
 export const isTeacher = (req: Request, res: Response, next: NextFunction): void => {
-  // @ts-ignore
-  if (req.user.role !== 'TEACHER') {
+  if (req.user?.role !== 'TEACHER') {
     res.status(403).json({ message: 'Forbidden' });
     return;
   }
@@ -31,8 +35,7 @@ export const isTeacher = (req: Request, res: Response, next: NextFunction): void
 };
 
 export const isStudent = (req: Request, res: Response, next: NextFunction): void => {
-  // @ts-ignore
-  if (req.user.role !== 'STUDENT') {
+  if (req.user?.role !== 'STUDENT') {
     res.status(403).json({ message: 'Forbidden' });
     return;
   }

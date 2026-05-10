@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { checkSubmissions } from '../api/assignments';
-import { useToast } from '../hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '../context/AuthContext';
 
 const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000; // 12 hours in milliseconds

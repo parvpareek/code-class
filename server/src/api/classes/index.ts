@@ -12,8 +12,8 @@ import {
   archiveClass,
   unarchiveClass,
   getArchivedClasses,
+  checkClassSubmissionStatus,
 } from './class.controller';
-import { checkClassSubmissionStatus } from './classes.controller';
 import { protect, isTeacher, isStudent } from '../auth/auth.middleware';
 
 const router = Router();

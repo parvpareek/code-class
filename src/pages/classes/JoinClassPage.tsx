@@ -14,7 +14,7 @@ import {
 import { Input } from '../../components/ui/input';
 import { joinClass } from '../../api/classes';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '../../components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   joinCode: z.string().length(6, 'Join code must be 6 characters long'),
