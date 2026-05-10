@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../../lib/prisma';
 import { subDays, format } from 'date-fns';
 import { Prisma } from '@prisma/client';
+import { checkAuthorizationForClass, checkTeacherAuthorization } from '../../services/authorization.service';
 
 interface LeaderboardEntry {
   id: string;
@@ -9,6 +10,7 @@ interface LeaderboardEntry {
   name: string;
   completedCount: number;
   avgSubmissionTime: string;
+  avgSubmissionTimeMinutes?: number;
   leetcodeUsername?: string;
   leetcodeCookieStatus?: string;
   leetcodeTotalSolved?: number;
@@ -223,11 +225,31 @@ const calculateLongestStreak = (submissions: SubmissionWithDate[]): number => {
 
 export const getLeaderboard = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { userId, role } = req.user!;
+
     const { classId, sortBy } = req.query;
     const normalizedSortBy = sortBy || 'assignments';
 
+    if (role === 'STUDENT') {
+      if (!classId || typeof classId !== 'string') {
+        res.status(400).json({ message: 'classId is required' });
+        return;
+      }
+      const allowed = await checkAuthorizationForClass(userId, classId);
+      if (!allowed) {
+        res.status(403).json({ message: 'Not authorized for this class' });
+        return;
+      }
+    } else if (role === 'TEACHER' && classId && typeof classId === 'string') {
+      const allowed = await checkAuthorizationForClass(userId, classId);
+      if (!allowed) {
+        res.status(403).json({ message: 'Not authorized for this class' });
+        return;
+      }
+    }
+
     let students: StudentForLeaderboard[];
-    
+
     if (classId && typeof classId === 'string') {
       students = (await prisma.user.findMany({
         where: {
@@ -241,6 +263,10 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
         ...studentForLeaderboardPayload,
       })) as unknown as StudentForLeaderboard[];
     } else {
+      if (role === 'STUDENT') {
+        res.status(400).json({ message: 'classId is required' });
+        return;
+      }
       students = (await prisma.user.findMany({
         where: {
           role: 'STUDENT'
@@ -344,6 +370,24 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
       rank: index + 1,
     }));
 
+    if (role === 'STUDENT') {
+      const publicRows = rankedData.map((entry) => {
+        if (entry.id === userId) {
+          return { ...entry, isSelf: true as const };
+        }
+        return {
+          rank: entry.rank,
+          name: entry.name,
+          completedCount: entry.completedCount,
+          avgSubmissionTime: entry.avgSubmissionTime,
+          avgSubmissionTimeMinutes: entry.avgSubmissionTimeMinutes,
+          isSelf: false as const,
+        };
+      });
+      res.json(publicRows);
+      return;
+    }
+
     res.json(rankedData);
   } catch (error) {
     console.error('Failed to fetch leaderboard:', error);
@@ -353,7 +397,14 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
 
 export const getClassCompletionData = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { userId } = req.user!;
     const { classId } = req.params;
+
+    const allowed = await checkAuthorizationForClass(userId, classId);
+    if (!allowed) {
+      res.status(403).json({ message: 'Not authorized for this class' });
+      return;
+    }
 
     const assignments = (await prisma.assignment.findMany({
       where: { classId },
@@ -403,10 +454,21 @@ export const getClassCompletionData = async (req: Request, res: Response): Promi
 
 export const getPlatformData = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { userId, role } = req.user!;
     const { classId } = req.query;
+
+    if (role === 'STUDENT' && (!classId || typeof classId !== 'string')) {
+      res.status(400).json({ message: 'classId is required' });
+      return;
+    }
 
     let whereCondition = {};
     if (classId && typeof classId === 'string') {
+      const allowed = await checkAuthorizationForClass(userId, classId);
+      if (!allowed) {
+        res.status(403).json({ message: 'Not authorized for this class' });
+        return;
+      }
       whereCondition = {
         assignment: {
           classId: classId
@@ -441,10 +503,21 @@ export const getPlatformData = async (req: Request, res: Response): Promise<void
 
 export const getDifficultyData = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { userId, role } = req.user!;
     const { classId } = req.query;
+
+    if (role === 'STUDENT' && (!classId || typeof classId !== 'string')) {
+      res.status(400).json({ message: 'classId is required' });
+      return;
+    }
 
     let whereCondition = {};
     if (classId && typeof classId === 'string') {
+      const allowed = await checkAuthorizationForClass(userId, classId);
+      if (!allowed) {
+        res.status(403).json({ message: 'Not authorized for this class' });
+        return;
+      }
       whereCondition = {
         assignment: {
           classId: classId
@@ -480,7 +553,19 @@ export const getDifficultyData = async (req: Request, res: Response): Promise<vo
 // Get comprehensive class analytics
 export const getClassAnalytics = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { userId, role } = req.user!;
     const { classId } = req.params;
+
+    if (role !== 'TEACHER') {
+      res.status(403).json({ error: 'Teacher access required' });
+      return;
+    }
+
+    const canTeach = await checkTeacherAuthorization(userId, classId);
+    if (!canTeach) {
+      res.status(403).json({ error: 'Not authorized for this class' });
+      return;
+    }
 
     const classData = (await prisma.class.findUnique({
       where: { id: classId },
@@ -696,8 +781,14 @@ export const getClassAnalytics = async (req: Request, res: Response): Promise<vo
 // Get detailed student analytics
 export const getStudentDetailedAnalytics = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { userId, role } = req.user!;
     const { studentId } = req.params;
     const { classId } = req.query;
+
+    if (role === 'STUDENT' && studentId !== userId) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
 
     const student = (await prisma.user.findUnique({
       where: { id: studentId },

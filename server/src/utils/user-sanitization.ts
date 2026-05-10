@@ -28,6 +28,7 @@ const SENSITIVE_FIELDS = [
   'password',
   'hackerrankCookie',
   'leetcodeCookie',
+  'gfgCookie',
   'judge0ApiKey',
   'geminiApiKey',
 ] as const;

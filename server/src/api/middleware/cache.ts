@@ -14,7 +14,13 @@ export const cacheMiddleware = async (req: Request, res: Response, next: NextFun
     return next();
   }
   
-  const key = `__express__${req.originalUrl || req.url}`;
+  const path = req.originalUrl || req.url || '';
+  let key = `__express__${path}`;
+  // Leaderboard response shape differs by role (and by student for "self" row) — avoid wrong cache hits
+  if (path.includes('/analytics/leaderboard') && req.user) {
+    const u = req.user;
+    key += `:${u.role}:${u.role === 'STUDENT' ? u.userId : 'all'}`;
+  }
   
   try {
     const data = await redisClient.get(key);

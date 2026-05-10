@@ -5,6 +5,27 @@ import { Prisma } from '@prisma/client';
 import { checkAuthorizationForClass, checkTeacherAuthorization } from '../../services/authorization.service';
 import { checkClassSubmissionStatus as checkClassSubmissionStatusService } from '../../services/submission.service';
 import redisClient from '../../lib/redis';
+import { sanitizeUser } from '../../utils/user-sanitization';
+
+/** User fields safe to load for class roster (no secrets, tokens, or OAuth ids). */
+const classRosterUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
+  hackerrankUsername: true,
+  hackerrankCookieStatus: true,
+  gfgUsername: true,
+  gfgCookieStatus: true,
+  leetcodeUsername: true,
+  leetcodeCookieStatus: true,
+  leetcodeTotalSolved: true,
+  leetcodeEasySolved: true,
+  leetcodeMediumSolved: true,
+  leetcodeHardSolved: true,
+} as const;
 
 // Generate a unique 6-character code for joining a class
 const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
@@ -365,7 +386,7 @@ export const getClassAssignments = async (req: Request, res: Response): Promise<
 
 export const getClassDetails = async (req: Request, res: Response): Promise<void> => {
   const { classId } = req.params;
-  const { userId } = req.user!;
+  const { userId, role } = req.user!;
   try {
     const isAuthorized = await checkAuthorizationForClass(userId, classId);
     if (!isAuthorized) {
@@ -376,10 +397,14 @@ export const getClassDetails = async (req: Request, res: Response): Promise<void
     const classInfo = await prisma.class.findUnique({
       where: { id: classId },
       include: {
-        teacher: true,
+        teacher: {
+          select: { name: true },
+        },
         students: {
           include: {
-            user: true,
+            user: {
+              select: { ...classRosterUserSelect },
+            },
           },
         },
       },
@@ -392,18 +417,25 @@ export const getClassDetails = async (req: Request, res: Response): Promise<void
 
     const { teacher, students, ...classData } = classInfo;
 
+    const enrolledCount = students.length;
+
+    const rosterSource =
+      role === 'STUDENT'
+        ? students.filter(({ user }) => user.id === userId)
+        : students;
+
     const result = {
       ...classData,
       teacherName: teacher.name,
-      students: students.map(({ user }) => {
+      enrolledCount,
+      students: rosterSource.map(({ user }) => {
         let platformCount = 0;
         if (user.hackerrankUsername) platformCount++;
         if (user.gfgUsername) platformCount++;
         if (user.leetcodeUsername) platformCount++;
 
-        const { password, leetcodeCookie, hackerrankCookie, ...strippedUser } = user;
         return {
-          ...strippedUser,
+          ...sanitizeUser(user),
           platformCount,
         };
       }),

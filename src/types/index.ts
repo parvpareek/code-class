@@ -32,6 +32,8 @@ export interface Class {
 }
 
 export interface ClassWithStudents extends Class {
+  /** Total enrollments; may differ from `students.length` when roster is filtered (e.g. student sees only self). */
+  enrolledCount?: number;
   students: Student[];
 }
 
@@ -172,12 +174,15 @@ export interface DifficultyData {
 }
 
 export interface LeaderboardEntry {
-  id: string;
+  id?: string;
   rank: number;
   name: string;
   completedCount: number;
   avgSubmissionTime: string;
-  // Enhanced LeetCode fields
+  avgSubmissionTimeMinutes?: number;
+  /** True when the viewer is a student and this row is their own (full fields). */
+  isSelf?: boolean;
+  // Enhanced LeetCode fields (teacher view, or student's own row only)
   leetcodeUsername?: string;
   leetcodeCookieStatus?: string;
   leetcodeTotalSolved?: number;

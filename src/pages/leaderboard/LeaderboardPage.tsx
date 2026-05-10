@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getLeaderboard } from '../../api/analytics';
 import { getClasses } from '../../api/classes';
 import { LeaderboardEntry, Class } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '../../components/ui/form';
@@ -21,9 +22,11 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const LeaderboardPage: React.FC = () => {
+  const { user, isLoading: authLoading } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [classes, setClasses] = useState<Class[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [pageLoading, setPageLoading] = useState<boolean>(true);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -33,59 +36,88 @@ const LeaderboardPage: React.FC = () => {
     },
   });
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
+  const loadLeaderboard = useCallback(
+    async (selectedClass: string | undefined, sortBy: string | undefined) => {
+      setPageLoading(true);
       try {
-        // Fetch classes first
+        const normalizedClassId = selectedClass === 'all' || !selectedClass ? undefined : selectedClass;
+        const data = await getLeaderboard(normalizedClassId, sortBy);
+        setLeaderboard(data);
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      } finally {
+        setPageLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    let cancelled = false;
+
+    const init = async () => {
+      setPageLoading(true);
+      try {
         const classesResponse = await getClasses();
-        setClasses(classesResponse.classes || []);
-        
-        // Fetch initial leaderboard with default values
-        await fetchLeaderboard('all', 'assignments');
+        if (cancelled) return;
+        const list = classesResponse.classes || [];
+        setClasses(list);
+
+        if (!user) {
+          setLeaderboard([]);
+          return;
+        }
+
+        if (user.role === 'STUDENT') {
+          if (list.length === 0) {
+            setLeaderboard([]);
+          } else {
+            const firstId = list[0].id;
+            form.setValue('selectedClass', firstId);
+            const normalizedClassId = firstId;
+            const data = await getLeaderboard(normalizedClassId, 'assignments');
+            if (!cancelled) setLeaderboard(data);
+          }
+        } else {
+          form.setValue('selectedClass', 'all');
+          const data = await getLeaderboard(undefined, 'assignments');
+          if (!cancelled) setLeaderboard(data);
+        }
       } catch (error) {
         console.error('Error fetching initial data:', error);
-        setClasses([]); // Ensure empty array on error
-        setIsLoading(false);
+        if (!cancelled) setClasses([]);
+      } finally {
+        if (!cancelled) setPageLoading(false);
       }
     };
 
-    fetchInitialData();
-  }, []);
-
-  const fetchLeaderboard = async (classId?: string, sortBy?: string) => {
-    setIsLoading(true);
-    try {
-      const normalizedClassId = classId === 'all' ? undefined : classId;
-      const leaderboardData = await getLeaderboard(normalizedClassId, sortBy);
-      setLeaderboard(leaderboardData);
-    } catch (error) {
-      console.error('Error fetching leaderboard:', error);
-      // Don't set leaderboard to empty on error, keep previous data
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    init();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.id, user?.role]);
 
   const onClassChange = (classId: string) => {
     form.setValue('selectedClass', classId);
-    const currentSortBy = form.getValues('sortBy');
-    fetchLeaderboard(classId, currentSortBy);
+    void loadLeaderboard(classId, form.getValues('sortBy'));
   };
 
   const onSortChange = (sortBy: string) => {
     form.setValue('sortBy', sortBy);
-    const currentClass = form.getValues('selectedClass');
-    fetchLeaderboard(currentClass, sortBy);
+    void loadLeaderboard(form.getValues('selectedClass'), sortBy);
   };
 
-  // Listen for leaderboard refresh events to update data when assignments change
-  useDataRefresh(DATA_REFRESH_EVENTS.LEADERBOARD_UPDATED, () => {
-    const currentClass = form.getValues('selectedClass');
-    const currentSortBy = form.getValues('sortBy');
-    fetchLeaderboard(currentClass, currentSortBy);
-  }, []);
+  useDataRefresh(
+    DATA_REFRESH_EVENTS.LEADERBOARD_UPDATED,
+    () => {
+      void loadLeaderboard(form.getValues('selectedClass'), form.getValues('sortBy'));
+    },
+    [loadLeaderboard]
+  );
 
-  if (isLoading) {
+  if (authLoading || pageLoading) {
     return <LoadingScreen />;
   }
 
@@ -108,16 +140,12 @@ const LeaderboardPage: React.FC = () => {
                 <FormItem>
                   <FormLabel>Filter by Class</FormLabel>
                   <FormControl>
-                    <Select
-                      onValueChange={onClassChange}
-                      value={field.value}
-                      defaultValue="all"
-                    >
+                    <Select onValueChange={onClassChange} value={field.value} defaultValue="all">
                       <SelectTrigger className="w-full md:w-[300px]">
-                        <SelectValue placeholder="All Classes" />
+                        <SelectValue placeholder={isStudent ? 'Select class' : 'All Classes'} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Classes</SelectItem>
+                        {!isStudent && <SelectItem value="all">All Classes</SelectItem>}
                         {classes.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.name}
@@ -137,11 +165,7 @@ const LeaderboardPage: React.FC = () => {
                 <FormItem>
                   <FormLabel>Sort by</FormLabel>
                   <FormControl>
-                    <Select
-                      onValueChange={onSortChange}
-                      value={field.value}
-                      defaultValue="assignments"
-                    >
+                    <Select onValueChange={onSortChange} value={field.value} defaultValue="assignments">
                       <SelectTrigger className="w-full md:w-[200px]">
                         <SelectValue placeholder="Sort by..." />
                       </SelectTrigger>
@@ -165,10 +189,9 @@ const LeaderboardPage: React.FC = () => {
             <CardTitle>Top Students</CardTitle>
           </div>
           <CardDescription>
-            {form.watch('sortBy') === 'leetcode' 
+            {form.watch('sortBy') === 'leetcode'
               ? 'Students ranked by LeetCode performance and assignment completion'
-              : 'Students ranked by completed assignments and submission speed'
-            }
+              : 'Students ranked by completed assignments and submission speed'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -178,10 +201,10 @@ const LeaderboardPage: React.FC = () => {
 
       <div className="mt-6 text-sm text-muted-foreground">
         <p>
-          <strong>Note:</strong> {form.watch('sortBy') === 'leetcode' 
+          <strong>Note:</strong>{' '}
+          {form.watch('sortBy') === 'leetcode'
             ? 'Rankings prioritize LeetCode problems solved, then assignment completion and submission speed.'
-            : 'Rankings are calculated based on completed assignments and average submission speed (time between assignment and submission).'
-          }
+            : 'Rankings are calculated based on completed assignments and average submission speed (time between assignment and submission).'}
         </p>
       </div>
     </div>

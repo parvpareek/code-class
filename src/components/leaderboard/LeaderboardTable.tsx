@@ -136,7 +136,7 @@ const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries }) => {
       </TableHeader>
       <TableBody>
         {sortedEntries.map((entry) => (
-          <TableRow key={entry.id} className={entry.rank <= 3 ? "bg-yellow-50 dark:bg-yellow-900/20" : ""}>
+          <TableRow key={entry.id ?? `r${entry.rank}-${entry.name}`} className={entry.rank <= 3 ? "bg-yellow-50 dark:bg-yellow-900/20" : ""}>
             <TableCell className="font-medium">
               <div className="flex items-center">
                 {entry.rank <= 3 ? (
@@ -150,7 +150,10 @@ const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries }) => {
               <div>
                 <div className="font-medium flex items-center gap-2">
                   {entry.name}
-                  {typeof (entry as any).lateCount === 'number' && (entry as any).lateCount > 0 && (
+                  {entry.isSelf && (
+                    <span className="text-xs text-muted-foreground font-normal">(You)</span>
+                  )}
+                  {typeof (entry as { lateCount?: number }).lateCount === 'number' && (entry as { lateCount?: number }).lateCount! > 0 && (
                     <span className="text-xs text-orange-600" title={`Late ${ (entry as any).lateCount }`}>
                       (Late {(entry as any).lateCount})
                     </span>

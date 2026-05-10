@@ -338,7 +338,7 @@ const ClassDetailsPage: React.FC = () => {
           <h1 className="text-3xl font-bold tracking-tight">{classDetails.name}</h1>
           <p className="text-muted-foreground mt-1">
             {isTeacher 
-              ? `${classDetails.students.length} enrolled students` 
+            ? `${classDetails.enrolledCount ?? classDetails.students.length} enrolled students` 
               : `Teacher: ${classDetails.teacherName}`
             }
           </p>
