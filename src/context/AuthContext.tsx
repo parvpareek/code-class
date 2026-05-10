@@ -13,7 +13,6 @@ const initialState: AuthState = {
 export const AuthContext = createContext<AuthContextType>({
   ...initialState,
   login: async () => {},
-  signup: async () => {},
   logout: () => {},
   updateProfile: async () => {},
   refreshUser: async () => {},
@@ -90,32 +89,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signup = async (name: string, email: string, password: string, role: 'teacher' | 'student') => {
-    try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-      
-      const { user, token } = await authApi.signup(name, email, password, role.toUpperCase() as 'TEACHER' | 'STUDENT');
-      
-      // Store token in localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      setAuthState({
-        user,
-        token,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      });
-    } catch (error: any) {
-      setAuthState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error.response?.data?.message || "Registration failed. Please try again.",
-      }));
-    }
-  };
-
   const logout = () => {
     // Remove token from localStorage
     localStorage.removeItem('token');
@@ -187,7 +160,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         ...authState,
         login,
-        signup,
         logout,
         updateProfile,
         refreshUser,

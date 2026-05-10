@@ -6,11 +6,6 @@ export const login = async (email: string, password: string) => {
   return response.data;
 };
 
-export const signup = async (name: string, email: string, password: string, role: 'TEACHER' | 'STUDENT') => {
-  const response = await api.post('/auth/signup', { name, email, password, role });
-  return response.data;
-};
-
 export const getCurrentUser = async () => {
   const response = await api.get('/auth/me');
   return response.data as User;

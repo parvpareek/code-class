@@ -1,19 +1,6 @@
-import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useAuth } from '../../context/AuthContext';
+import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '../../components/ui/form';
-import { Input } from '../../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -21,129 +8,54 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { Alert, AlertDescription } from '../../components/ui/alert';
-import { AlertCircle } from 'lucide-react';
-
-const formSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.enum(['TEACHER', 'STUDENT'], {
-    required_error: 'Please select a role',
-  }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { Label } from '../../components/ui/label';
+import { getApiV1BaseUrl } from '../../config/apiBase';
 
 const SignupPage: React.FC = () => {
-  const { signup, error, isLoading, clearError } = useAuth();
-  const navigate = useNavigate();
+  const [role, setRole] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      password: '',
-      role: 'STUDENT',
-    },
-  });
-
-  const onSubmit = async (values: FormValues) => {
-    try {
-      await signup(values.name, values.email, values.password, values.role);
-      navigate('/classes');
-    } catch (error) {
-      console.error('Signup failed:', error);
-    }
-  };
+  const { googleHref, githubHref } = useMemo(() => {
+    const base = getApiV1BaseUrl();
+    const q = `role=${encodeURIComponent(role.toLowerCase())}`;
+    return {
+      googleHref: `${base}/auth/oauth/google/start?${q}`,
+      githubHref: `${base}/auth/oauth/github/start?${q}`,
+    };
+  }, [role]);
 
   return (
     <>
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Create an account</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Choose your role, then sign up with Google or GitHub. Existing accounts keep their current role when you
+            sign in again.
+          </p>
+        </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter your name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="space-y-2">
+          <Label>I am a</Label>
+          <Select value={role} onValueChange={(v) => setRole(v as 'STUDENT' | 'TEACHER')}>
+            <SelectTrigger>
+              <SelectValue placeholder="Role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="STUDENT">Student</SelectItem>
+              <SelectItem value="TEACHER">Teacher</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input type="email" placeholder="Enter your email" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="Create a password" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>I am a</FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  defaultValue={field.value}
-                  onOpenChange={() => clearError()}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="STUDENT">Student</SelectItem>
-                    <SelectItem value="TEACHER">Teacher</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Signing up...' : 'Sign up'}
-            </Button>
-          </div>
-        </form>
-      </Form>
+        <div className="flex flex-col gap-3">
+          <Button variant="outline" className="w-full" asChild>
+            <a href={googleHref}>Continue with Google</a>
+          </Button>
+          <Button variant="outline" className="w-full bg-[#24292f] text-white hover:bg-[#24292f]/90" asChild>
+            <a href={githubHref}>Continue with GitHub</a>
+          </Button>
+        </div>
+      </div>
 
       <div className="mt-6 text-center text-sm">
         <p className="text-gray-500">

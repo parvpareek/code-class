@@ -16,6 +16,7 @@ import TeacherRoute from "./components/layout/TeacherRoute";
 // Auth Pages
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
+import OAuthCallbackPage from "./pages/auth/OAuthCallbackPage";
 
 // App Pages
 import HomePage from "./pages/home/HomePage";
@@ -72,6 +73,7 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
         </Route>
+        <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
         {/* Admin routes - separate from regular app */}
         <Route path="/admin/login" element={<AdminLoginPage />} />

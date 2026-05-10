@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getApiV1BaseUrl } from '../config/apiBase';
 
 // Create an Axios instance with a base URL
 // Environment Configuration:
@@ -6,28 +7,8 @@ import axios from 'axios';
 // - For local development: VITE_API_URL=http://localhost:4000/api/v1 in .env file
 // - For production: VITE_API_URL=https://codeclass.up.railway.app/api/v1 in .env file
 
-// Ensure the base URL always includes /api/v1
-const getBaseURL = () => {
-  const envURL = import.meta.env.VITE_API_URL;
-  
-  // If environment variable is set, use it
-  if (envURL) {
-    // Ensure it ends with /api/v1 if not already present
-    if (envURL.endsWith('/api/v1')) {
-      return envURL;
-    } else if (envURL.endsWith('/')) {
-      return envURL + 'api/v1';
-    } else {
-      return envURL + '/api/v1';
-    }
-  }
-  
-  // Default fallback
-  return 'https://codeclass.up.railway.app/api/v1';
-};
-
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: getApiV1BaseUrl(),
 });
 
 // Debug log to help identify any issues (remove in production)
