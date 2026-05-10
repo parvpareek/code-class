@@ -27,8 +27,8 @@ const AuthLayout: React.FC = () => {
             Coding Classroom
           </h2>
         </div>
-        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
-          <div className="bg-white dark:bg-black px-6 py-12 shadow border border-gray-200 dark:border-gray-800 sm:rounded-lg sm:px-12">
+        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-[440px]">
+          <div className="rounded-2xl border border-border/80 bg-card px-6 py-10 shadow-lg shadow-black/5 dark:shadow-black/30 sm:px-10">
             <Outlet />
           </div>
         </div>
