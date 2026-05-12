@@ -20,6 +20,7 @@ import { getApiV1BaseUrl } from '../../config/apiBase';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
 import { OAuthBrandButtons, RoleSegment } from '../../components/auth/OAuthBrandButtons';
 import { cn } from '@/lib/utils';
+import { readLastSignInMethod } from '@/lib/lastSignInStorage';
 
 const formSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -34,7 +35,10 @@ const LoginPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [oauthRole, setOauthRole] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
-  const [emailOpen, setEmailOpen] = useState(false);
+  const lastMethod = readLastSignInMethod();
+  const lastOAuth =
+    lastMethod === 'GOOGLE' || lastMethod === 'GITHUB' ? lastMethod : undefined;
+  const [emailOpen, setEmailOpen] = useState(() => lastMethod === 'EMAIL_PASSWORD');
 
   const { googleHref, githubHref } = useMemo(() => {
     const base = getApiV1BaseUrl();
@@ -91,7 +95,11 @@ const LoginPage: React.FC = () => {
         label="I am a (for new accounts)"
       />
 
-      <OAuthBrandButtons googleHref={googleHref} githubHref={githubHref} />
+      <OAuthBrandButtons
+        googleHref={googleHref}
+        githubHref={githubHref}
+        lastUsed={lastOAuth}
+      />
 
       <Collapsible open={emailOpen} onOpenChange={setEmailOpen}>
         <div className="relative py-1">
@@ -108,11 +116,18 @@ const LoginPage: React.FC = () => {
             type="button"
             className={cn(
               'mx-auto mt-1 flex w-full max-w-xs items-center justify-center gap-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground',
-              'rounded-lg hover:bg-muted/60'
+              'rounded-lg hover:bg-muted/60',
+              lastMethod === 'EMAIL_PASSWORD' &&
+                'ring-2 ring-brand-blue/60 ring-offset-2 ring-offset-background text-foreground'
             )}
           >
             <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', emailOpen && 'rotate-180')} />
             Sign in with email &amp; password
+            {lastMethod === 'EMAIL_PASSWORD' ? (
+              <span className="rounded-full bg-brand-blue/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-blue">
+                Last used
+              </span>
+            ) : null}
           </button>
         </CollapsibleTrigger>
 

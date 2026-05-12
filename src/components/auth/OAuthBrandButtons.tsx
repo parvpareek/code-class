@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 function GoogleMark({ className }: { className?: string }) {
   return (
@@ -32,24 +33,65 @@ function GithubMark({ className }: { className?: string }) {
 }
 
 const googleBtnClass =
-  'flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900';
+  'flex w-full items-center rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900';
 
 const githubBtnClass =
-  'flex w-full items-center justify-center gap-3 rounded-xl bg-[#24292f] px-4 py-3 text-sm font-medium text-white shadow-sm transition-all hover:bg-[#2d333b] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40';
+  'flex w-full items-center rounded-xl bg-[#24292f] px-4 py-3 text-sm font-medium text-white shadow-sm transition-all hover:bg-[#2d333b] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40';
 
-type Props = { googleHref: string; githubHref: string };
+type LastUsedOAuth = 'GOOGLE' | 'GITHUB';
+
+type Props = {
+  googleHref: string;
+  githubHref: string;
+  /** Highlight OAuth button used last time on this device (from localStorage / API sync). */
+  lastUsed?: LastUsedOAuth | null;
+};
+
+function LastUsedBadge() {
+  return (
+    <span className="ml-auto rounded-full bg-brand-blue/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-blue dark:bg-brand-blue/25">
+      Last used
+    </span>
+  );
+}
 
 /** Styled OAuth anchors with brand marks (Google guidelines–style layout). */
-export function OAuthBrandButtons({ googleHref, githubHref }: Props) {
+export function OAuthBrandButtons({ googleHref, githubHref, lastUsed }: Props) {
   return (
     <div className="flex flex-col gap-3">
-      <a href={googleHref} className={googleBtnClass}>
-        <GoogleMark className="h-5 w-5 shrink-0" />
-        <span>Continue with Google</span>
+      <a
+        href={googleHref}
+        className={cn(
+          googleBtnClass,
+          lastUsed === 'GOOGLE' ? 'justify-between gap-2' : 'justify-center gap-3',
+          lastUsed === 'GOOGLE' &&
+            'ring-2 ring-brand-blue ring-offset-2 ring-offset-background dark:ring-offset-background'
+        )}
+      >
+        <span className="flex items-center gap-3">
+          <GoogleMark className="h-5 w-5 shrink-0" />
+          <span>Continue with Google</span>
+        </span>
+        {lastUsed === 'GOOGLE' ? <LastUsedBadge /> : null}
       </a>
-      <a href={githubHref} className={githubBtnClass}>
-        <GithubMark className="h-5 w-5 shrink-0 text-white" />
-        <span>Continue with GitHub</span>
+      <a
+        href={githubHref}
+        className={cn(
+          githubBtnClass,
+          lastUsed === 'GITHUB' ? 'justify-between gap-2' : 'justify-center gap-3',
+          lastUsed === 'GITHUB' &&
+            'ring-2 ring-white/80 ring-offset-2 ring-offset-background dark:ring-offset-background'
+        )}
+      >
+        <span className="flex items-center gap-3">
+          <GithubMark className="h-5 w-5 shrink-0 text-white" />
+          <span>Continue with GitHub</span>
+        </span>
+        {lastUsed === 'GITHUB' ? (
+          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+            Last used
+          </span>
+        ) : null}
       </a>
     </div>
   );

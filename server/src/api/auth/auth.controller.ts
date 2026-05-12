@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { SignInMethod } from '@prisma/client';
 import prisma from '../../lib/prisma';
 import { sanitizeUser } from '../../utils/user-sanitization';
 
@@ -29,8 +30,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       expiresIn: '1d',
     });
 
-    // Sanitize user data before sending to frontend
-    const sanitizedUser = sanitizeUser(user);
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { lastSignInMethod: SignInMethod.EMAIL_PASSWORD },
+    });
+
+    const sanitizedUser = sanitizeUser(updated);
     res.status(200).json({ token, user: sanitizedUser });
   } catch (error) {
     res.status(500).json({ message: 'Error logging in', error });

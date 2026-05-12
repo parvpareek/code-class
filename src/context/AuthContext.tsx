@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType, AuthState, User } from '../types';
 import * as authApi from '../api/auth';
+import { writeLastSignInMethod } from '../lib/lastSignInStorage';
 
 const initialState: AuthState = {
   user: null,
@@ -39,6 +40,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isLoading: false,
             error: null,
           });
+          if (user?.lastSignInMethod) {
+            writeLastSignInMethod(user.lastSignInMethod);
+          }
         } else {
           setAuthState({
             ...initialState,
@@ -72,6 +76,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Store token in localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      if (user?.lastSignInMethod) {
+        writeLastSignInMethod(user.lastSignInMethod);
+      }
       
       setAuthState({
         user,
@@ -140,6 +147,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const user = await authApi.getCurrentUser();
       
       localStorage.setItem('user', JSON.stringify(user));
+      if (user?.lastSignInMethod) {
+        writeLastSignInMethod(user.lastSignInMethod);
+      }
       
       setAuthState(prev => ({
         ...prev,

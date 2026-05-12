@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { writeLastSignInMethod } from '../../lib/lastSignInStorage';
 
 /**
  * Full-page handler: API redirects here with #token=... or #error=...
@@ -27,6 +27,11 @@ const OAuthCallbackPage: React.FC = () => {
       setMessage('Missing token. Try signing in again.');
       const t = setTimeout(() => navigate('/login'), 2000);
       return () => clearTimeout(t);
+    }
+
+    const signInMethod = params.get('signInMethod');
+    if (signInMethod === 'GOOGLE' || signInMethod === 'GITHUB') {
+      writeLastSignInMethod(signInMethod);
     }
 
     localStorage.setItem('token', token);

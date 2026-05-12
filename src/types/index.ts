@@ -3,6 +3,7 @@ export interface User {
   name: string;
   email: string;
   role: 'STUDENT' | 'TEACHER';
+  lastSignInMethod?: 'GOOGLE' | 'GITHUB' | 'EMAIL_PASSWORD' | null;
   hackerrankUsername?: string;
   hackerrankCookieStatus?: string; // LINKED, EXPIRED, NOT_LINKED
   leetcodeUsername?: string;

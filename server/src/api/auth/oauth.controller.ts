@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { Prisma, Role } from '@prisma/client';
+import { Prisma, Role, SignInMethod } from '@prisma/client';
 import prisma from '../../lib/prisma';
 import { logger } from '../../utils/logger';
 
@@ -14,9 +14,11 @@ function oauthErrorRedirect(res: Response, message: string): void {
   res.redirect(`${base}/oauth/callback#error=${encodeURIComponent(message)}`);
 }
 
-function oauthSuccessRedirect(res: Response, token: string): void {
+function oauthSuccessRedirect(res: Response, token: string, method: 'GOOGLE' | 'GITHUB'): void {
   const base = getFrontendBase();
-  res.redirect(`${base}/oauth/callback#token=${encodeURIComponent(token)}`);
+  res.redirect(
+    `${base}/oauth/callback#token=${encodeURIComponent(token)}&signInMethod=${encodeURIComponent(method)}`
+  );
 }
 
 function parseRoleFromQuery(query: unknown): Role {
@@ -217,6 +219,7 @@ async function finalizeOAuthUser(opts: {
   newUserRole: Role;
 }) {
   const { provider, providerId, email, name, newUserRole } = opts;
+  const method = provider === 'google' ? SignInMethod.GOOGLE : SignInMethod.GITHUB;
   const googleId = provider === 'google' ? providerId : undefined;
   const githubId = provider === 'github' ? providerId : undefined;
 
@@ -233,7 +236,8 @@ async function finalizeOAuthUser(opts: {
       googleId?: string;
       githubId?: string;
       name?: string;
-    } = {};
+      lastSignInMethod: SignInMethod;
+    } = { lastSignInMethod: method };
     if (googleId && user.googleId !== googleId) {
       update.googleId = googleId;
     }
@@ -243,9 +247,7 @@ async function finalizeOAuthUser(opts: {
     if (name && user.name !== name) {
       update.name = name;
     }
-    if (Object.keys(update).length > 0) {
-      user = await prisma.user.update({ where: { id: user.id }, data: update });
-    }
+    user = await prisma.user.update({ where: { id: user.id }, data: update });
     return user;
   }
 
@@ -257,6 +259,7 @@ async function finalizeOAuthUser(opts: {
       githubId,
       password: null,
       role: newUserRole,
+      lastSignInMethod: method,
     },
   });
 }
@@ -331,7 +334,7 @@ export const oauthGoogleCallback = async (req: Request, res: Response): Promise<
     });
 
     const token = issueUserJwt(user.id, user.role);
-    oauthSuccessRedirect(res, token);
+    oauthSuccessRedirect(res, token, 'GOOGLE');
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Google sign-in failed';
     logger.error('oauthGoogleCallback failed');
@@ -400,7 +403,7 @@ export const oauthGithubCallback = async (req: Request, res: Response): Promise<
     });
 
     const token = issueUserJwt(user.id, user.role);
-    oauthSuccessRedirect(res, token);
+    oauthSuccessRedirect(res, token, 'GITHUB');
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'GitHub sign-in failed';
     logger.error('oauthGithubCallback failed');
