@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getApiV1BaseUrl } from '../config/apiBase';
+import { clearAuthToken, getAuthToken } from '../lib/authTokenStorage';
 
 // Create an Axios instance with a base URL
 // Environment Configuration:
@@ -14,7 +15,7 @@ const api = axios.create({
 // Interceptor to add JWT token to request headers
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -31,7 +32,7 @@ api.interceptors.response.use(
   (error) => {
     // Handle unauthorized errors (401)
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
+      clearAuthToken();
       localStorage.removeItem('user');
       // Redirect to homepage if unauthorized
       if (window.location.pathname !== '/') {

@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import { getAuthToken } from '../../lib/authTokenStorage';
 
 const TestsPage: React.FC = () => {
   const { user } = useAuth();
@@ -43,7 +44,7 @@ const TestsPage: React.FC = () => {
       setIsLoading(true);
       
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/tests`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });

@@ -16,6 +16,7 @@ import {
   AlertTriangleIcon
 } from 'lucide-react';
 import { useToast } from '../../hooks/use-toast';
+import { getAuthToken } from '../../lib/authTokenStorage';
 
 interface Problem {
   id: string;
@@ -90,7 +91,7 @@ const TestResultsPage: React.FC = () => {
   useEffect(() => {
     const fetchResults = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         
         // Fetch test details
         const testResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/tests/${testId}`, {

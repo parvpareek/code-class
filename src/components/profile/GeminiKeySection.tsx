@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Lightbulb
 } from 'lucide-react';
+import { getAuthToken } from '../../lib/authTokenStorage';
 
 interface GeminiStatus {
   hasKey: boolean;
@@ -36,7 +37,7 @@ const GeminiKeySection: React.FC<GeminiKeySectionProps> = ({ onKeyUpdate }) => {
   // Fetch current Gemini status
   const fetchStatus = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
       const response = await fetch(`${apiBaseUrl}/auth/gemini-status`, {
         headers: {
@@ -68,7 +69,7 @@ const GeminiKeySection: React.FC<GeminiKeySectionProps> = ({ onKeyUpdate }) => {
     setSuccess(null);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
       const response = await fetch(`${apiBaseUrl}/auth/gemini-key`, {
         method: 'POST',
@@ -108,7 +109,7 @@ const GeminiKeySection: React.FC<GeminiKeySectionProps> = ({ onKeyUpdate }) => {
     setSuccess(null);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
       const response = await fetch(`${apiBaseUrl}/auth/gemini-key`, {
         method: 'DELETE',

@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType, AuthState, User } from '../types';
 import * as authApi from '../api/auth';
+import { clearAuthToken, getAuthToken, setAuthToken } from '../lib/authTokenStorage';
 import { writeLastSignInMethod } from '../lib/lastSignInStorage';
 
 const initialState: AuthState = {
   user: null,
-  token: localStorage.getItem('token'),
+  token: typeof window !== 'undefined' ? getAuthToken() : null,
   isAuthenticated: false,
   isLoading: true,
   error: null,
@@ -26,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
 
         if (token) {
           const user = await authApi.getCurrentUser();
@@ -45,7 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         }
       } catch (error) {
-        localStorage.removeItem('token');
+        clearAuthToken();
         localStorage.removeItem('user');
 
         setAuthState({
@@ -69,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       writeLastSignInMethod('EMAIL_PASSWORD');
 
-      localStorage.setItem('token', token);
+      setAuthToken(token);
       localStorage.setItem('user', JSON.stringify(user));
 
       setAuthState({
@@ -89,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    clearAuthToken();
     localStorage.removeItem('user');
 
     setAuthState({

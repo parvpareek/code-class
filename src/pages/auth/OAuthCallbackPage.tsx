@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { setAuthToken } from '@/lib/authTokenStorage';
 import { writeLastSignInMethod } from '../../lib/lastSignInStorage';
 
 /**
@@ -34,16 +36,16 @@ const OAuthCallbackPage: React.FC = () => {
       writeLastSignInMethod(signInMethod);
     }
 
-    localStorage.setItem('token', token);
+    setAuthToken(token);
     window.location.replace('/classes');
   }, [navigate]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-      <div className="h-12 w-12 rounded-full bg-brand-blue flex items-center justify-center mb-6">
-        <span className="text-white text-xl font-bold">CC</span>
+      <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue">
+        <span className="text-xl font-bold text-white">CC</span>
       </div>
-      <p className="text-center text-muted-foreground max-w-md">{message}</p>
+      <p className="max-w-md text-center text-muted-foreground">{message}</p>
     </div>
   );
 };

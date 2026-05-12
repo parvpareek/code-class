@@ -34,6 +34,7 @@ import {
 } from '../../components/ui/select';
 import { TestProblem, TestCase } from '../../components/tests/TestCard';
 import TestCaseEditor from '../../components/tests/TestCaseEditor';
+import { getAuthToken } from '../../lib/authTokenStorage';
 
 interface TestFormData {
   title: string;
@@ -92,7 +93,7 @@ const CreateTestPage: React.FC = () => {
     setIsImporting(true);
     
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/tests/import-leetcode`, {
         method: 'POST',
         headers: {
@@ -154,7 +155,7 @@ const CreateTestPage: React.FC = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/classes`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -170,7 +171,7 @@ const CreateTestPage: React.FC = () => {
 
     const fetchJudge0Stats = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/judge0/pool-stats`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -358,7 +359,7 @@ const CreateTestPage: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       
       // Prepare the data with proper datetime format and test case format
       const testData = {

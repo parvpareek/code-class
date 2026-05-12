@@ -21,6 +21,7 @@ import {
   ServerIcon
 } from 'lucide-react';
 import { useToast } from '../../hooks/use-toast';
+import { getAuthToken } from '../../lib/authTokenStorage';
 import { io, Socket } from 'socket.io-client';
 import ViolationMonitoringPanel from '../../components/test/ViolationMonitoringPanel';
 
@@ -86,7 +87,7 @@ const TestMonitoringPage: React.FC = () => {
   useEffect(() => {
     const initializeMonitoring = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         
         // Fetch test details
         const testResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/tests/${testId}`, {
@@ -128,7 +129,7 @@ const TestMonitoringPage: React.FC = () => {
   // Fetch student sessions
   const fetchStudentSessions = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/tests/${testId}/sessions`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -144,7 +145,7 @@ const TestMonitoringPage: React.FC = () => {
 
   // Setup WebSocket connection
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!token || !testId) return;
 
     const socket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:4000', {
@@ -221,7 +222,7 @@ const TestMonitoringPage: React.FC = () => {
   // Start test
   const handleStartTest = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`/api/v1/tests/${testId}/start`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -247,7 +248,7 @@ const TestMonitoringPage: React.FC = () => {
   // End test
   const handleEndTest = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`/api/v1/tests/${testId}/end`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -273,7 +274,7 @@ const TestMonitoringPage: React.FC = () => {
   // Force process pending batches
   const handleProcessBatches = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`/api/v1/tests/${testId}/process-batches`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -298,7 +299,7 @@ const TestMonitoringPage: React.FC = () => {
   // Export results
   const handleExportResults = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`/api/v1/tests/${testId}/export`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });

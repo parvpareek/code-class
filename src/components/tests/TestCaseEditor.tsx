@@ -22,6 +22,7 @@ import {
   KeyRound
 } from 'lucide-react';
 import { Switch } from '../ui/switch';
+import { getAuthToken } from '../../lib/authTokenStorage';
 
 interface TestCase {
   id: string;
@@ -56,7 +57,7 @@ const TestCaseEditor: React.FC<TestCaseEditorProps> = ({
       if (user?.role !== 'TEACHER') return;
       
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/auth/gemini-key`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -136,7 +137,7 @@ const TestCaseEditor: React.FC<TestCaseEditorProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${getAuthToken()}`
         },
         body: JSON.stringify({
           title: problemTitle,

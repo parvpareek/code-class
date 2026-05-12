@@ -24,6 +24,7 @@ import {
   InfoIcon
 } from 'lucide-react';
 import { useToast } from '../../hooks/use-toast';
+import { getAuthToken } from '../../lib/authTokenStorage';
 import { io, Socket } from 'socket.io-client';
 import { Editor } from '@monaco-editor/react';
 import { useInvigilator, ViolationEvent } from '../../hooks/useInvigilator';
@@ -245,7 +246,7 @@ console.log("Hello World");`
   useEffect(() => {
     const initializeTest = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/tests/${testId}/join`, {
           method: 'POST',
           headers: {
@@ -300,7 +301,7 @@ console.log("Hello World");`
 
   // Setup WebSocket connection
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!token || !testId) return;
 
     const socket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:4000', {
@@ -418,7 +419,7 @@ console.log("Hello World");`
     setExecutionResults(null);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       
       // Use multi-test endpoint if solve mode and multi-test enabled
       const useMultiTest = codeMode === 'solve' && isMultiTestEnabled && selectedLanguage === 'cpp';
@@ -488,7 +489,7 @@ console.log("Hello World");`
 
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'}/test-sessions/${testId}/submit`, {
         method: 'POST',
         headers: {
@@ -569,7 +570,7 @@ console.log("Hello World");`
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       
       // Use multi-test endpoint if any submission uses multi-test
       const hasMultiTest = finalSubmissions.some(sub => sub.useMultiTest);
