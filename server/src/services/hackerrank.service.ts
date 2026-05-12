@@ -237,6 +237,7 @@ const processHackerRankSubmissions = async (
     submissionId: string;
     assignDate: Date | null;
     dueDate: Date | null;
+    assignmentCreatedAt: Date | null;
   }>();
   
   userProblems.forEach(submission => {
@@ -247,7 +248,8 @@ const processHackerRankSubmissions = async (
           problemId: submission.problem.id,
           submissionId: submission.id,
           assignDate: submission.problem.assignment?.assignDate || null,
-          dueDate: submission.problem.assignment?.dueDate || null
+          dueDate: submission.problem.assignment?.dueDate || null,
+          assignmentCreatedAt: submission.problem.assignment?.createdAt ?? null,
         });
         console.log(`🔍 Problem mapped: ${submission.problem.title} -> slug: ${slug}`);
       }
@@ -260,72 +262,65 @@ const processHackerRankSubmissions = async (
   // Update submissions that match our problems using improved logic
   let updatedCount = 0;
   
+  const slugMatchesSubmission = (slug: string, s: HackerRankSubmission) => {
+    if (s.challenge_slug === slug) return true;
+    const normalizedChallengeName = normalizeHackerRankChallengeName(s.challenge_name);
+    if (normalizedChallengeName === slug) return true;
+    const normalizedSlug = normalizeHackerRankChallengeName(slug);
+    if (normalizedChallengeName === normalizedSlug) return true;
+    return false;
+  };
+
   for (const [slug, data] of problemSlugMap) {
-    // Try multiple matching strategies:
-    // 1. Direct slug match (if API provides slug)
-    // 2. Normalized challenge name match
-    const matchingSubmission = submissions.find(s => {
-      // Strategy 1: Direct slug comparison (if available)
-      if (s.challenge_slug === slug) {
-        return true;
-      }
-      
-      // Strategy 2: Normalize the challenge name and compare with URL slug
-      const normalizedChallengeName = normalizeHackerRankChallengeName(s.challenge_name);
-      if (normalizedChallengeName === slug) {
-        return true;
-      }
-      
-      // Strategy 3: Compare normalized versions of both
-      const normalizedSlug = normalizeHackerRankChallengeName(slug);
-      if (normalizedChallengeName === normalizedSlug) {
-        return true;
-      }
-      
-      return false;
-    });
-    
-    if (matchingSubmission) {
-      const submissionTime = safeDateFromHackerRank(matchingSubmission.created_at);
-      
-      // Check if submission is before assignment start date
-      const isBeforeAssignment = data.assignDate && submissionTime < data.assignDate;
-      
-      // Check if submission is after due date
-      let isAfterDueDate = false;
-      if (data.dueDate) {
-        const dueDateEndOfDay = new Date(data.dueDate);
-        dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
-        isAfterDueDate = submissionTime > dueDateEndOfDay;
-      }
-      
-      // Accept ALL submissions (problem is solved = completed)
-      const shouldComplete = true;
-      
-      if (shouldComplete) {
-        await prisma.submission.update({
-          where: { id: data.submissionId },
-          data: {
-            completed: true,
-            submissionTime,
-            updatedAt: new Date() // Track when we updated this submission
-          }
-        });
-        
-        updatedCount++;
-        let status = 'ON TIME';
-        if (isBeforeAssignment) {
-          status = 'BEFORE ASSIGNMENT';
-        } else if (isAfterDueDate) {
-          status = 'LATE';
-        }
-        console.log(`🔶 HackerRank: Marked ${slug} as completed [${status}] for ${user.hackerrankUsername}`);
-        console.log(`   Matched via: ${matchingSubmission.challenge_slug ? 'slug' : 'normalized name'} (${matchingSubmission.challenge_name})`);
-        console.log(`   Submission time: ${submissionTime.toISOString()} (window: ${data.assignDate?.toISOString() || 'N/A'} to ${data.dueDate?.toISOString() || 'N/A'})`);
-      }
-    } else {
-      console.log(`🔶 HackerRank: No submission found for ${slug} by ${user.hackerrankUsername}`);
+    if (!data.assignmentCreatedAt) {
+      console.log(`🔶 HackerRank: Skipping ${slug} — assignment has no createdAt`);
+      continue;
     }
+    const assignmentCreated = data.assignmentCreatedAt;
+
+    const candidates = submissions
+      .filter((s) => slugMatchesSubmission(slug, s))
+      .map((s) => ({
+        s,
+        t: safeDateFromHackerRank(s.created_at),
+      }))
+      .filter(({ t }) => t.getTime() >= assignmentCreated.getTime());
+
+    if (candidates.length === 0) {
+      console.log(`🔶 HackerRank: No submission on or after assignment creation for ${slug}`);
+      continue;
+    }
+
+    const matchingSubmission = candidates.reduce((a, b) => (a.t <= b.t ? a : b)).s;
+    const submissionTime = safeDateFromHackerRank(matchingSubmission.created_at);
+
+    const isBeforeAssignment = data.assignDate && submissionTime < data.assignDate;
+
+    let isAfterDueDate = false;
+    if (data.dueDate) {
+      const dueDateEndOfDay = new Date(data.dueDate);
+      dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+      isAfterDueDate = submissionTime > dueDateEndOfDay;
+    }
+
+    await prisma.submission.update({
+      where: { id: data.submissionId },
+      data: {
+        completed: true,
+        submissionTime,
+        updatedAt: new Date(),
+      },
+    });
+
+    updatedCount++;
+    let status = 'ON TIME';
+    if (isBeforeAssignment) status = 'BEFORE ASSIGNMENT';
+    else if (isAfterDueDate) status = 'LATE';
+    console.log(`🔶 HackerRank: Marked ${slug} as completed [${status}] for ${user.hackerrankUsername}`);
+    console.log(
+      `   Matched via: ${matchingSubmission.challenge_slug ? 'slug' : 'normalized name'} (${matchingSubmission.challenge_name})`
+    );
+    console.log(`   Submission time: ${submissionTime.toISOString()}`);
   }
 
   console.log(`✅ HackerRank: Updated ${updatedCount} problem submissions out of ${submissions.length} fetched submissions for ${user.hackerrankUsername}`);
@@ -443,7 +438,7 @@ export const forceCheckHackerRankSubmissionsForAssignment = async (
   // 2. Get all students assigned to this assignment
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    select: { classId: true, assignDate: true, dueDate: true },
+    select: { classId: true, assignDate: true, dueDate: true, createdAt: true },
   });
 
   if (!assignment) {
@@ -489,6 +484,7 @@ export const forceCheckHackerRankSubmissionsForAssignment = async (
         if (problemSlugMap.has(submissionSlug)) {
           const problemId = problemSlugMap.get(submissionSlug)!;
           const submissionTime = safeDateFromHackerRank(sub.created_at);
+          if (submissionTime < assignment.createdAt) continue;
           
           // Keep the BEST submission: prioritize on-time, then earliest
           const existing = submissionsByProblem.get(problemId);

@@ -20,64 +20,95 @@ type GfgPracticeApiUserProblemsSubmissionsRequest = {
   month: string;
 };
 
+type GfgPracticeProblemEntry = {
+  slug?: string;
+  pname?: string;
+  lang?: string;
+  /** e.g. "2025-07-23 08:33:27" when present */
+  user_subtime?: string;
+};
+
 type GfgPracticeApiUserProblemsSubmissionsResponse = {
   status: 'success' | 'failed' | string;
   message?: string;
-  result?: Record<string, Record<string, { slug?: string; pname?: string; lang?: string }>>;
+  result?: Record<string, Record<string, GfgPracticeProblemEntry>>;
   count?: number;
 };
 
+const GFG_PRACTICE_SUBMISSIONS_URL =
+  'https://practiceapi.geeksforgeeks.org/api/v1/user/problems/submissions/';
+
+const parseGfgUserSubtime = (raw: string): Date | null => {
+  const t = new Date(raw.trim());
+  return Number.isNaN(t.getTime()) ? null : t;
+};
+
 /**
- * Fetches all solved GeeksForGeeks problem slugs for a user.
- * @param username - The GFG username.
- * @returns A Set containing the slugs of all solved problems.
+ * POST practice API (handle only, no cookies). Maps each problem slug to the earliest
+ * accepted solve time from `user_subtime` when the API returns it.
+ */
+export const fetchGfgSlugToSubmissionTime = async (
+  username: string
+): Promise<Map<string, Date>> => {
+  const slugToTime = new Map<string, Date>();
+  try {
+    const payload: GfgPracticeApiUserProblemsSubmissionsRequest = {
+      handle: username,
+      requestType: '',
+      year: '',
+      month: '',
+    };
+
+    const response = await axios.post<GfgPracticeApiUserProblemsSubmissionsResponse>(
+      GFG_PRACTICE_SUBMISSIONS_URL,
+      payload,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    if (!response.data || response.data.status !== 'success' || !response.data.result) {
+      console.error(
+        `GFG Practice API error for user ${username}: ${response.data?.message || 'No result found'}`
+      );
+      return slugToTime;
+    }
+
+    for (const difficultyKey of Object.keys(response.data.result)) {
+      const byId = response.data.result[difficultyKey] || {};
+      for (const id of Object.keys(byId)) {
+        const entry = byId[id];
+        const slug = entry?.slug;
+        if (!slug) continue;
+        const parsed = entry.user_subtime ? parseGfgUserSubtime(entry.user_subtime) : null;
+        if (!parsed) continue;
+        const prev = slugToTime.get(slug);
+        if (!prev || parsed.getTime() < prev.getTime()) {
+          slugToTime.set(slug, parsed);
+        }
+      }
+    }
+
+    console.log(`GFG: ${slugToTime.size} solved problems with timestamps for ${username}.`);
+    return slugToTime;
+  } catch (error: unknown) {
+    const axiosError = error as { response?: { status: number; data: unknown }; message?: string };
+    if (axiosError.response) {
+      console.error(
+        `Error fetching GFG submissions for ${username}. Status: ${axiosError.response.status}, Data:`,
+        axiosError.response.data
+      );
+    } else {
+      console.error(`Error fetching GFG submissions for ${username}:`, axiosError.message);
+    }
+    return slugToTime;
+  }
+};
+
+/**
+ * Solved GFG slugs for a user (same POST API as fetchGfgSlugToSubmissionTime).
  */
 export const getAllGfgSolvedSlugs = async (username: string): Promise<Set<string>> => {
-    console.log(`Fetching all solved GFG problems for user: ${username}`);
-    try {
-        const GFG_PRACTICE_API_URL = 'https://practiceapi.geeksforgeeks.org/api/v1/user/problems/submissions/';
-
-        // Cookie-less endpoint: relies on handle only
-        const payload: GfgPracticeApiUserProblemsSubmissionsRequest = {
-          handle: username,
-          requestType: '',
-          year: '',
-          month: ''
-        };
-
-        const response = await axios.post<GfgPracticeApiUserProblemsSubmissionsResponse>(
-          GFG_PRACTICE_API_URL,
-          payload,
-          { headers: { 'Content-Type': 'application/json' } }
-        );
-
-        if (!response.data || response.data.status !== 'success' || !response.data.result) {
-          console.error(`GFG Practice API error for user ${username}: ${response.data?.message || 'No result found'}`);
-          return new Set();
-        }
-
-        const solvedSlugs = new Set<string>();
-        for (const difficultyKey of Object.keys(response.data.result)) {
-          const byId = response.data.result[difficultyKey] || {};
-          for (const submissionId of Object.keys(byId)) {
-            const slug = byId[submissionId]?.slug;
-            if (slug) {
-              solvedSlugs.add(slug);
-            }
-          }
-        }
-
-        console.log(`Found ${solvedSlugs.size} solved GFG problems for ${username}.`);
-        return solvedSlugs;
-    } catch (error: unknown) {
-        const axiosError = error as { response?: { status: number; data: unknown }; message?: string };
-        if (axiosError.response) {
-            console.error(`Error fetching GFG solved list for ${username}. Status: ${axiosError.response.status}, Data:`, axiosError.response.data);
-        } else {
-            console.error(`Error fetching GFG solved list for ${username}:`, axiosError.message);
-        }
-        return new Set();
-    }
+  const map = await fetchGfgSlugToSubmissionTime(username);
+  return new Set(map.keys());
 };
 
 /**
@@ -93,76 +124,6 @@ export const getGfgProblemSlug = (url: string): string => {
         console.error(`Error extracting slug from GFG URL: ${url}`, error);
         return url;
     }
-};
-
-type GfgProblemSubmissionResponse = {
-  results?: {
-    id: number;
-    problem_name: string;
-    slug: string;
-    problem_level: number;
-    problem_level_text: string;
-    submissions?: Array<{
-      submission_id: string;
-      subtime: string;
-      lang: string;
-      exec_status: string;
-      exec_status_text: string;
-      testcase_passed: string;
-      total_testcase_count: string;
-      user_score: string;
-      correct_submission_sequence: string;
-    }>;
-  };
-};
-
-/**
- * Fetches submission details for a specific GFG problem using authenticated cookie.
- * @param problemSlug - The GFG problem slug.
- * @param gfgCookie - The gfguserName cookie value.
- * @returns The earliest correct submission with timestamp, or null if not found.
- */
-export const getGfgProblemSubmission = async (
-  problemSlug: string, 
-  gfgCookie: string
-): Promise<{ submissionTime: Date; isCorrect: boolean } | null> => {
-  const apiUrl = `https://practiceapi.geeksforgeeks.org/api/latest/problems/${problemSlug}/submissions/user/`;
-  
-  try {
-    const response = await axios.get<GfgProblemSubmissionResponse>(apiUrl, {
-      headers: {
-        'Cookie': `gfguserName=${gfgCookie}`,
-        'User-Agent': 'Mozilla/5.0',
-        'Referer': 'https://practice.geeksforgeeks.org/',
-        'Accept': 'application/json',
-      },
-    });
-
-    if (response.status === 200 && response.data?.results?.submissions) {
-      const submissions = response.data.results.submissions;
-      
-      // Find the first correct submission (exec_status === "1")
-      const correctSubmission = submissions.find((sub: any) => sub.exec_status === '1');
-      
-      if (correctSubmission && correctSubmission.subtime) {
-        // Parse the timestamp (format: "2025-07-20 17:31:58")
-        const submissionTime = new Date(correctSubmission.subtime);
-        return {
-          submissionTime,
-          isCorrect: true
-        };
-      }
-    }
-    
-    return null;
-  } catch (error: any) {
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.error(`🔒 GFG cookie expired/invalid for problem ${problemSlug}`);
-      throw new Error('GFG_COOKIE_EXPIRED');
-    }
-    console.error(`Error fetching GFG problem submission for ${problemSlug}:`, error.message);
-    return null;
-  }
 };
 
 /**
@@ -196,12 +157,18 @@ const getProblemIdentifier = (platform: string, url: string): string => {
 };
 
 /**
- * Process only GFG submissions - uses cookie-based API when available for exact timestamps
+ * Process GFG submissions via practice POST API (handle only; uses `user_subtime` per slug).
  */
 const processGfgSubmissions = async (
   submissions: (Submission & {
     user: User;
-    problem: Problem & { assignment?: { assignDate: Date | null; dueDate: Date | null } | null };
+    problem: Problem & {
+      assignment?: {
+        assignDate: Date | null;
+        dueDate: Date | null;
+        createdAt: Date;
+      } | null;
+    };
   })[]
 ): Promise<number> => {
     // Filter to only GFG submissions
@@ -229,110 +196,52 @@ const processGfgSubmissions = async (
         
         console.log(`👤 Processing ${userSubmissions.length} GFG submissions for user: ${user.name} (${user.email})`);
 
-        const uRow = user as User & { gfgCookie?: string | null; gfgCookieStatus?: string | null };
-        let gfgCookie: string | null | undefined = uRow.gfgCookie;
-        let gfgCookieStatus: string | null | undefined = uRow.gfgCookieStatus;
-        if (gfgCookie === undefined && gfgCookieStatus === undefined) {
-          const creds = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { gfgCookie: true, gfgCookieStatus: true },
-          });
-          gfgCookie = creds?.gfgCookie ?? null;
-          gfgCookieStatus = creds?.gfgCookieStatus ?? null;
-        }
-
-        const hasCookie = !!gfgCookie && gfgCookieStatus === 'LINKED';
-
-        if (hasCookie) {
-          console.log(`🔑 Using cookie-based API for ${user.name} (exact timestamps)`);
-        } else {
-          console.log(`📚 Using bulk API for ${user.name} (no timestamps)`);
-        }
-
-        // Process each GFG submission
+        const slugToTime = await fetchGfgSlugToSubmissionTime(user.gfgUsername);
         let updatedCount = 0;
-        let cookieExpired = false;
-        /** Lazy-loaded once per user when bulk API is needed (avoids N identical HTTP calls). */
-        let bulkSolvedSlugs: Set<string> | null = null;
 
         for (const submission of userSubmissions) {
             const { problem } = submission;
             const problemSlug = getGfgProblemSlug(problem.url);
             console.log(`📝 Checking GFG problem: '${problem.title}' (slug: '${problemSlug}')`);
-            
-            let submissionTime: Date | null = null;
-            let isCompleted = false;
 
-            // Try cookie-based API first if available
-            if (hasCookie && !cookieExpired && gfgCookie) {
-              try {
-                const result = await getGfgProblemSubmission(problemSlug, gfgCookie);
-                if (result && result.isCorrect) {
-                  isCompleted = true;
-                  submissionTime = result.submissionTime;
-                  console.log(`✅ Found correct submission with timestamp: ${submissionTime.toISOString()}`);
-                }
-              } catch (error: any) {
-                if (error.message === 'GFG_COOKIE_EXPIRED') {
-                  console.error(`❌ GFG cookie expired for ${user.name}, marking as expired`);
-                  cookieExpired = true;
-                  // Mark cookie as expired in database
-                  await prisma.user.update({
-                    where: { id: userId },
-                    data: { gfgCookieStatus: 'EXPIRED' }
-                  });
-                  // Fall back to bulk API for remaining problems
-                } else {
-                  console.error(`⚠️ Error fetching problem submission: ${error.message}`);
-                }
-              }
+            const submissionTime = slugToTime.get(problemSlug) ?? null;
+            const createdAt = problem.assignment?.createdAt;
+            const afterAssignmentCreated =
+              submissionTime != null &&
+              createdAt != null &&
+              submissionTime >= createdAt;
+
+            if (submissionTime != null && createdAt != null && submissionTime < createdAt) {
+              console.log(
+                `⏭️ GFG '${problem.title}' — solve before assignment existed (${submissionTime.toISOString()} < ${createdAt.toISOString()})`
+              );
             }
 
-            // Fallback to bulk API if no cookie or cookie failed (one fetch per user)
-            if (!isCompleted) {
-              if (bulkSolvedSlugs === null) {
-                bulkSolvedSlugs = await getAllGfgSolvedSlugs(user.gfgUsername);
-              }
-              isCompleted = bulkSolvedSlugs.has(problemSlug);
-              if (isCompleted) {
-                console.log(`✅ Found in bulk API (no exact timestamp)`);
-              }
-            }
+            const isCompleted = afterAssignmentCreated;
 
-            if (isCompleted) {
-                const finalSubmissionTime = submissionTime || new Date(); // Use current time if no exact timestamp
-                const assignDate = problem.assignment?.assignDate;
-                const dueDate = problem.assignment?.dueDate;
-                
-                // Check if submission is before assignment start date
-                const isBeforeAssignment = assignDate && finalSubmissionTime < assignDate;
-                
-                // Check if submission is after due date
-                let isAfterDueDate = false;
-                if (dueDate) {
-                  const dueDateEndOfDay = new Date(dueDate);
-                  dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
-                  isAfterDueDate = finalSubmissionTime > dueDateEndOfDay;
-                }
-                
-                // Determine status
-                let status = 'ON TIME';
-                if (isBeforeAssignment) {
-                    status = 'BEFORE ASSIGNMENT';
-                } else if (isAfterDueDate) {
-                    status = 'LATE';
-                }
-                
-                console.log(`✅ Marking GFG submission as completed [${status}] for ${user.name} on ${problem.title}`);
-                const result = await prisma.submission.updateMany({
-                    where: { id: submission.id, completed: false },
-                    data: { completed: true, submissionTime: finalSubmissionTime },
-                });
-                if (result.count > 0) {
-                  updatedCount++;
-                }
+            if (isCompleted && submissionTime != null) {
+              const finalSubmissionTime = submissionTime;
+              const assignDate = problem.assignment?.assignDate;
+              const dueDate = problem.assignment?.dueDate;
+              const isBeforeAssignment = assignDate && finalSubmissionTime < assignDate;
+              let isAfterDueDate = false;
+              if (dueDate) {
+                const dueDateEndOfDay = new Date(dueDate);
+                dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+                isAfterDueDate = finalSubmissionTime > dueDateEndOfDay;
+              }
+              let status = 'ON TIME';
+              if (isBeforeAssignment) status = 'BEFORE ASSIGNMENT';
+              else if (isAfterDueDate) status = 'LATE';
+
+              console.log(`✅ Marking GFG submission as completed [${status}] for ${user.name} on ${problem.title}`);
+              const upd = await prisma.submission.updateMany({
+                where: { id: submission.id, completed: false },
+                data: { completed: true, submissionTime: finalSubmissionTime },
+              });
+              if (upd.count > 0) updatedCount++;
             } else {
-                console.log(`❌ GFG problem '${problem.title}' not solved yet`);
+              console.log(`❌ GFG problem '${problem.title}' not solved yet`);
             }
         }
         
@@ -384,9 +293,9 @@ export const checkAllSubmissions = async () => {
                 user: {
                     select: {
                         id: true,
+                        name: true,
+                        email: true,
                         gfgUsername: true,
-                        gfgCookie: true,
-                        gfgCookieStatus: true,
                     },
                 },
                 problem: {
@@ -395,6 +304,13 @@ export const checkAllSubmissions = async () => {
                         url: true,
                         title: true,
                         platform: true,
+                        assignment: {
+                            select: {
+                                createdAt: true,
+                                assignDate: true,
+                                dueDate: true,
+                            },
+                        },
                     },
                 },
             },
@@ -495,8 +411,6 @@ export const checkSubmissionsForAssignment = async (assignmentId: string, userId
                         name: true,
                         email: true,
                         gfgUsername: true,
-                        gfgCookie: true,
-                        gfgCookieStatus: true,
                     },
                 },
                 problem: {
@@ -506,7 +420,11 @@ export const checkSubmissionsForAssignment = async (assignmentId: string, userId
                         title: true,
                         platform: true,
                         assignment: {
-                            select: { assignDate: true, dueDate: true },
+                            select: {
+                                createdAt: true,
+                                assignDate: true,
+                                dueDate: true,
+                            },
                         },
                     },
                 },
