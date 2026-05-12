@@ -10,12 +10,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum SignInMethod {
-  GOOGLE
-  GITHUB
-  EMAIL_PASSWORD
-}
-
 model User {
   id                     String                  @id @default(cuid())
   email                  String                  @unique
@@ -24,7 +18,6 @@ model User {
   role                   Role             @default(STUDENT)
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
-  lastSignInMethod       SignInMethod?
 
   // OAuth fields
   googleId               String?          @unique

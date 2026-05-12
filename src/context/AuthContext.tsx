@@ -23,16 +23,14 @@ export const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>(initialState);
 
-  // Load user data from localStorage on initial render
   useEffect(() => {
     const loadUser = async () => {
       try {
         const token = localStorage.getItem('token');
-        
+
         if (token) {
-          // Get current user data from API
           const user = await authApi.getCurrentUser();
-          
+
           setAuthState({
             user,
             token,
@@ -40,9 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isLoading: false,
             error: null,
           });
-          if (user?.lastSignInMethod) {
-            writeLastSignInMethod(user.lastSignInMethod);
-          }
         } else {
           setAuthState({
             ...initialState,
@@ -50,16 +45,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         }
       } catch (error) {
-        // Clear storage if there's an error (e.g., invalid token)
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        
+
         setAuthState({
           user: null,
           token: null,
           isAuthenticated: false,
           isLoading: false,
-          error: "Session expired, please log in again.",
+          error: 'Session expired, please log in again.',
         });
       }
     };
@@ -69,17 +63,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-      
+      setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
+
       const { user, token } = await authApi.login(email, password);
-      
-      // Store token in localStorage
+
+      writeLastSignInMethod('EMAIL_PASSWORD');
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      if (user?.lastSignInMethod) {
-        writeLastSignInMethod(user.lastSignInMethod);
-      }
-      
+
       setAuthState({
         user,
         token,
@@ -88,19 +80,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         error: null,
       });
     } catch (error: any) {
-      setAuthState(prev => ({
+      setAuthState((prev) => ({
         ...prev,
         isLoading: false,
-        error: error.response?.data?.message || "Login failed. Please check your credentials.",
+        error: error.response?.data?.message || 'Login failed. Please check your credentials.',
       }));
     }
   };
 
   const logout = () => {
-    // Remove token from localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
+
     setAuthState({
       user: null,
       token: null,
@@ -116,51 +107,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     gfgUsername?: string;
   }) => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-      
+      setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
+
       const updatedUser = await authApi.updateUserProfile(data);
-      
+
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      setAuthState(prev => ({
+
+      setAuthState((prev) => ({
         ...prev,
         user: updatedUser as User,
         isLoading: false,
       }));
     } catch (error: any) {
-      setAuthState(prev => ({
+      setAuthState((prev) => ({
         ...prev,
         isLoading: false,
-        error: error.response?.data?.message || "Failed to update profile.",
+        error: error.response?.data?.message || 'Failed to update profile.',
       }));
     }
   };
-  
+
   const clearError = () => {
-    setAuthState(prev => ({ ...prev, error: null }));
+    setAuthState((prev) => ({ ...prev, error: null }));
   };
 
   const refreshUser = async () => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-      
+      setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
+
       const user = await authApi.getCurrentUser();
-      
+
       localStorage.setItem('user', JSON.stringify(user));
-      if (user?.lastSignInMethod) {
-        writeLastSignInMethod(user.lastSignInMethod);
-      }
-      
-      setAuthState(prev => ({
+
+      setAuthState((prev) => ({
         ...prev,
         user: user as User,
         isLoading: false,
       }));
     } catch (error: any) {
-      setAuthState(prev => ({
+      setAuthState((prev) => ({
         ...prev,
         isLoading: false,
-        error: error.response?.data?.message || "Failed to refresh user data.",
+        error: error.response?.data?.message || 'Failed to refresh user data.',
       }));
     }
   };

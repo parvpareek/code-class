@@ -6,7 +6,6 @@ const SAFE_USER_FIELDS = [
   'email',
   'name',
   'role',
-  'lastSignInMethod',
   'createdAt',
   'updatedAt',
   'hackerrankUsername',

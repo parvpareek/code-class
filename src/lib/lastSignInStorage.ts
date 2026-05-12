@@ -1,4 +1,4 @@
-/** Synced with Prisma `SignInMethod` — used for local "last used" on auth UI. */
+/** Values for local "last used" hint on sign-in / sign-up (client-only). */
 export type ClientSignInMethod = 'GOOGLE' | 'GITHUB' | 'EMAIL_PASSWORD';
 
 export const LAST_SIGN_IN_STORAGE_KEY = 'code-class-last-sign-in-method';

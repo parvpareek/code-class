@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { Prisma, Role, SignInMethod } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import prisma from '../../lib/prisma';
 import { logger } from '../../utils/logger';
 
@@ -219,7 +219,6 @@ async function finalizeOAuthUser(opts: {
   newUserRole: Role;
 }) {
   const { provider, providerId, email, name, newUserRole } = opts;
-  const method = provider === 'google' ? SignInMethod.GOOGLE : SignInMethod.GITHUB;
   const googleId = provider === 'google' ? providerId : undefined;
   const githubId = provider === 'github' ? providerId : undefined;
 
@@ -236,8 +235,7 @@ async function finalizeOAuthUser(opts: {
       googleId?: string;
       githubId?: string;
       name?: string;
-      lastSignInMethod: SignInMethod;
-    } = { lastSignInMethod: method };
+    } = {};
     if (googleId && user.googleId !== googleId) {
       update.googleId = googleId;
     }
@@ -247,7 +245,9 @@ async function finalizeOAuthUser(opts: {
     if (name && user.name !== name) {
       update.name = name;
     }
-    user = await prisma.user.update({ where: { id: user.id }, data: update });
+    if (Object.keys(update).length > 0) {
+      user = await prisma.user.update({ where: { id: user.id }, data: update });
+    }
     return user;
   }
 
@@ -259,7 +259,6 @@ async function finalizeOAuthUser(opts: {
       githubId,
       password: null,
       role: newUserRole,
-      lastSignInMethod: method,
     },
   });
 }

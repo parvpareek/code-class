@@ -28,7 +28,6 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
         leetcodeMediumSolved: true,
         leetcodeHardSolved: true,
 
-        lastSignInMethod: true,
         createdAt: true,
       },
     });
