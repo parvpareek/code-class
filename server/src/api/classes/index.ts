@@ -5,6 +5,8 @@ import {
   joinClass,
   getClassAssignments,
   getClassDetails,
+  getClassmates,
+  getClassmateByUserId,
   updateClass,
   deleteClass,
   leaveClass,
@@ -22,6 +24,8 @@ router.get('/', protect, getClasses);
 router.get('/archived', protect, getArchivedClasses);
 router.post('/', protect, isTeacher, createClass);
 router.post('/join', protect, isStudent, joinClass);
+router.get('/:classId/classmates/:userId', protect, getClassmateByUserId);
+router.get('/:classId/classmates', protect, getClassmates);
 router.get('/:classId', protect, getClassDetails);
 router.get('/:classId/assignments', protect, getClassAssignments);
 router.patch('/:classId', protect, isTeacher, updateClass);

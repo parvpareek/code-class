@@ -376,6 +376,7 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
           return { ...entry, isSelf: true as const };
         }
         return {
+          id: entry.id,
           rank: entry.rank,
           name: entry.name,
           completedCount: entry.completedCount,

@@ -26,6 +26,7 @@ import ArchivedClassesPage from "./pages/classes/ArchivedClassesPage";
 import CreateClassPage from "./pages/classes/CreateClassPage";
 import JoinClassPage from "./pages/classes/JoinClassPage";
 import ClassDetailsPage from "./pages/classes/ClassDetailsPage";
+import ClassPeerProfilePage from "./pages/classes/ClassPeerProfilePage";
 import NewAssignmentPage from "./pages/assignments/NewAssignmentPage";
 import AssignmentDetailsPage from "./pages/assignments/AssignmentDetailsPage";
 import AnalyticsPage from "./pages/analytics/AnalyticsPage";
@@ -41,6 +42,8 @@ import TestTakingPage from './pages/tests/TestTakingPage';
 import TestMonitoringPage from './pages/tests/TestMonitoringPage';
 import TestResultsPage from './pages/tests/TestResultsPage';
 import { StudentAnalyticsPage } from './pages/students/StudentAnalyticsPage';
+import PublicPortfolioPage from './pages/portfolio/PublicPortfolioPage';
+import PortfolioStudioPage from './pages/portfolio/PortfolioStudioPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 
@@ -85,6 +88,8 @@ function AppContent() {
         </Route>
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
+        <Route path="/p/:slug" element={<PublicPortfolioPage />} />
+
         {/* Admin routes - separate from regular app */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
@@ -95,6 +100,7 @@ function AppContent() {
           <Route path="/classes/archived" element={<ArchivedClassesPage />} />
           <Route path="/classes/create" element={<TeacherRoute><CreateClassPage /></TeacherRoute>} />
           <Route path="/classes/:classId" element={<ClassDetailsPage />} />
+          <Route path="/classes/:classId/peers/:userId" element={<ClassPeerProfilePage />} />
           <Route path="/classes/:classId/settings" element={<TeacherRoute><ClassSettingsPage /></TeacherRoute>} />
           <Route
             path="/classes/:classId/assignments/new"
@@ -126,8 +132,10 @@ function AppContent() {
           <Route path="/tests/:testId/results" element={<TestResultsPage />} />
         </Route>
         
-        {/* Test taking route - outside AppLayout for fullscreen */}
+        {/* Full-screen experiences outside AppLayout */}
         <Route path="/tests/:testId/take" element={<TestTakingPage />} />
+        <Route path="/portfolio" element={<Navigate to="/portfolio/studio" replace />} />
+        <Route path="/portfolio/studio" element={<PortfolioStudioPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>

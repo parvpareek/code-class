@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { LeaderboardEntry } from '../../types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Award, ChevronDown, ChevronUp, Code, Trophy, Info } from 'lucide-react';
@@ -9,12 +10,14 @@ import { cn } from '../../lib/utils';
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
+  /** When set, student names link to class peer profile (same class as leaderboard filter). */
+  peerNavigation?: { classId: string } | null;
 }
 
 type SortKey = 'rank' | 'name' | 'completedCount' | 'avgSubmissionTime';
 type SortDirection = 'asc' | 'desc';
 
-const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries }) => {
+const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries, peerNavigation }) => {
   const [sortKey, setSortKey] = useState<SortKey>('rank');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -149,7 +152,16 @@ const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ entries }) => {
             <TableCell>
               <div>
                 <div className="font-medium flex items-center gap-2">
-                  {entry.name}
+                  {peerNavigation?.classId && entry.id ? (
+                    <Link
+                      to={`/classes/${peerNavigation.classId}/peers/${entry.id}`}
+                      className="hover:underline text-primary"
+                    >
+                      {entry.name}
+                    </Link>
+                  ) : (
+                    <span>{entry.name}</span>
+                  )}
                   {entry.isSelf && (
                     <span className="text-xs text-muted-foreground font-normal">(You)</span>
                   )}

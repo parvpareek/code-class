@@ -448,6 +448,105 @@ export const getClassDetails = async (req: Request, res: Response): Promise<void
   }
 };
 
+/** Peer-safe fields only (no email, cookies, OAuth ids). */
+const peerClassmateUserSelect = {
+  id: true,
+  name: true,
+  leetcodeUsername: true,
+  gfgUsername: true,
+  hackerrankUsername: true,
+  leetcodeTotalSolved: true,
+  leetcodeEasySolved: true,
+  leetcodeMediumSolved: true,
+  leetcodeHardSolved: true,
+  portfolioProfile: {
+    select: { slug: true, published: true },
+  },
+} as const;
+
+type PeerClassmateUser = Prisma.UserGetPayload<{ select: typeof peerClassmateUserSelect }>;
+
+function mapUserToClassmatePublic(user: PeerClassmateUser) {
+  const pf = user.portfolioProfile;
+  return {
+    id: user.id,
+    name: user.name,
+    leetcodeUsername: user.leetcodeUsername,
+    gfgUsername: user.gfgUsername,
+    hackerrankUsername: user.hackerrankUsername,
+    leetcodeTotalSolved: user.leetcodeTotalSolved,
+    leetcodeEasySolved: user.leetcodeEasySolved,
+    leetcodeMediumSolved: user.leetcodeMediumSolved,
+    leetcodeHardSolved: user.leetcodeHardSolved,
+    portfolio: pf ? { slug: pf.slug, published: pf.published } : null,
+  };
+}
+
+/** Classmates roster for enrolled students/teachers (privacy-safe: no email between peers). */
+export const getClassmates = async (req: Request, res: Response): Promise<void> => {
+  const { classId } = req.params;
+  const { userId } = req.user!;
+  try {
+    const allowed = await checkAuthorizationForClass(userId, classId);
+    if (!allowed) {
+      res.status(403).json({ message: 'You are not authorized to view this class.' });
+      return;
+    }
+
+    const enrollments = await prisma.usersOnClasses.findMany({
+      where: { classId },
+      include: {
+        user: {
+          select: peerClassmateUserSelect,
+        },
+      },
+    });
+
+    const classmates = enrollments
+      .map((e) => mapUserToClassmatePublic(e.user))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+    res.status(200).json({ classmates });
+  } catch (error) {
+    console.error('Error fetching classmates:', error);
+    res.status(500).json({ message: 'Error fetching classmates', error });
+  }
+};
+
+/** Single classmate profile (deep link / refresh); verifies membership in class. */
+export const getClassmateByUserId = async (req: Request, res: Response): Promise<void> => {
+  const { classId, userId: peerUserId } = req.params;
+  const { userId } = req.user!;
+  try {
+    const allowed = await checkAuthorizationForClass(userId, classId);
+    if (!allowed) {
+      res.status(403).json({ message: 'You are not authorized to view this class.' });
+      return;
+    }
+
+    const enrollment = await prisma.usersOnClasses.findUnique({
+      where: {
+        userId_classId: { userId: peerUserId, classId },
+      },
+      include: {
+        user: {
+          select: peerClassmateUserSelect,
+        },
+      },
+    });
+
+    if (!enrollment) {
+      res.status(404).json({ message: 'Classmate not found in this class.' });
+      return;
+    }
+
+    res.status(200).json({ classmate: mapUserToClassmatePublic(enrollment.user) });
+  } catch (error) {
+    console.error('Error fetching classmate:', error);
+    res.status(500).json({ message: 'Error fetching classmate', error });
+  }
+};
+
 export const updateClass = async (req: Request, res: Response): Promise<void> => {
   const { classId } = req.params;
   const { name, description } = req.body as { name?: string; description?: string };

@@ -195,7 +195,7 @@ const LeaderboardPage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <LeaderboardTable entries={leaderboard} />
+          <LeaderboardTable entries={leaderboard} peerNavigation={peerNavigation} />
         </CardContent>
       </Card>
 

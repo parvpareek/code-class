@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { getClassDetails, getClassAssignments, removeStudentFromClass } from '../../api/classes';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getClassDetails, getClassAssignments, removeStudentFromClass, getClassmates } from '../../api/classes';
 import { getAssignmentDetails } from '../../api/assignments';
 import { deleteAssignment } from '../../api/assignments';
 import { getClassAnnouncements } from '../../api/announcements';
-import { ClassWithStudents, Assignment, TeacherAssignment, StudentAssignment, Student, Announcement } from '../../types';
+import { Assignment, TeacherAssignment, StudentAssignment } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../hooks/use-toast';
-import { triggerDataRefresh, DATA_REFRESH_EVENTS } from '../../utils/dataRefresh';
+import { triggerDataRefresh, DATA_REFRESH_EVENTS, useDataRefresh } from '../../utils/dataRefresh';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -17,13 +18,41 @@ import LeetCodeStats from '../../components/ui/LeetCodeStats';
 import AnnouncementList from '../../components/announcements/AnnouncementList';
 import TestList from '../../components/tests/TestList';
 import { CodingTest } from '../../components/tests/TestCard';
-import { Plus, Users, BookOpen, Award, Copy, Code, TrendingUp, Search, Megaphone, Terminal, UserMinus, Key, Shield } from 'lucide-react';
+import { Plus, Users, BookOpen, Copy, TrendingUp, Search, Megaphone, Terminal, UserMinus, Loader2 } from 'lucide-react';
 import { Input } from '../../components/ui/input';
-import SubmissionStatusChecker from '../../components/classes/SubmissionStatusChecker';
 import { StudentAnalyticsDashboard } from '../../components/analytics/StudentAnalyticsDashboard';
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '../../components/ui/accordion';
 import { Badge } from '../../components/ui/badge';
+import { classmatesQueryKey } from '@/lib/classmatesQuery';
+import {
+  CLASS_PAGE_GC_MS,
+  classAnnouncementsQueryKey,
+  classAssignmentsQueryKey,
+  classDetailsQueryKey,
+  invalidateClassPageQueries,
+} from '@/lib/classPageQuery';
 
+const classmatesInterestKey = (cid: string) => `cc-classmates:${cid}`;
+
+function hasClassmatesInterest(cid: string | undefined): boolean {
+  if (!cid || typeof window === 'undefined') return false;
+  try {
+    return window.sessionStorage.getItem(classmatesInterestKey(cid)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function rememberClassmatesInterest(cid: string | undefined) {
+  if (!cid || typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(classmatesInterestKey(cid), '1');
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+/** Keep roster in React Query until explicitly invalidated (portfolio publish); survive peer-profile navigation. */
+const CLASSMATES_GC_MS = 7 * 24 * 60 * 60 * 1000;
 
 const ClassDetailsPage: React.FC = () => {
   const { classId } = useParams<{ classId: string }>();
@@ -31,18 +60,14 @@ const ClassDetailsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const isTeacher = user?.role === 'TEACHER';
-  
-  const [classDetails, setClassDetails] = useState<ClassWithStudents | null>(null);
-  const [assignments, setAssignments] = useState<(Assignment | TeacherAssignment | StudentAssignment)[]>([]);
+
   const [tests, setTests] = useState<CodingTest[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const initialTab = searchParams.get('tab') || (isTeacher ? 'overview' : 'assignments');
   const [activeTab, setActiveTab] = useState(initialTab);
   const [studentSearch, setStudentSearch] = useState('');
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [classmateSearch, setClassmateSearch] = useState('');
   const [latestAssignmentLateCounts, setLatestAssignmentLateCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -53,114 +78,161 @@ const ClassDetailsPage: React.FC = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!classId) return;
-      
-      setIsLoading(true);
-      try {
-        const [classData, assignmentsData, announcementsData] = await Promise.all([
-          getClassDetails(classId),
-          getClassAssignments(classId),
-          getClassAnnouncements(classId),
-        ]);
-        
-        setClassDetails(classData);
-        setAssignments(assignmentsData);
-        setAnnouncements(announcementsData);
+    if (activeTab === 'classmates' && classId) {
+      rememberClassmatesInterest(classId);
+    }
+  }, [activeTab, classId]);
 
-        // Compute late counts for the most recent assignment (lightweight: single extra call)
-        const sorted = [...assignmentsData].sort((a, b) => {
-          const aTime = new Date((a as any).dueDate || (a as any).createdAt).getTime();
-          const bTime = new Date((b as any).dueDate || (b as any).createdAt).getTime();
-          return bTime - aTime;
-        });
-        const latest = sorted[0];
-        if (latest && (user?.role === 'TEACHER')) {
-          try {
-            const details: any = await getAssignmentDetails(latest.id);
-            if (details && Array.isArray(details.problems)) {
-              const counts: Record<string, number> = {};
-              details.problems.forEach((p: any) => {
-                if (Array.isArray(p.submissions)) {
-                  p.submissions.forEach((s: any) => {
-                    // Check if submission is late (with proper end-of-day calculation in UTC)
-                    let isLate = s?.isLate;
-                    if (isLate === undefined && s?.submissionTime && details?.dueDate) {
-                      const dueDateEndOfDay = new Date(details.dueDate);
-                      dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
-                      isLate = new Date(s.submissionTime).getTime() > dueDateEndOfDay.getTime();
-                    }
-                    
-                    if (s?.completed && isLate) {
-                      counts[s.userId] = (counts[s.userId] || 0) + 1;
-                    }
-                  });
+  const classmatesQueryEnabled = Boolean(
+    classId &&
+      !isTeacher &&
+      (activeTab === 'classmates' || hasClassmatesInterest(classId))
+  );
+
+  const classmatesQuery = useQuery({
+    queryKey: classId ? classmatesQueryKey(classId) : ['classmates', '__none'],
+    queryFn: async () => (await getClassmates(classId!)).classmates,
+    enabled: classmatesQueryEnabled,
+    staleTime: Infinity,
+    gcTime: CLASSMATES_GC_MS,
+  });
+
+  const detailsQuery = useQuery({
+    queryKey: classId ? classDetailsQueryKey(classId) : ['class', 'details', '__none'],
+    queryFn: () => getClassDetails(classId!),
+    enabled: Boolean(classId),
+    staleTime: Infinity,
+    gcTime: CLASS_PAGE_GC_MS,
+  });
+
+  const assignmentsQuery = useQuery({
+    queryKey: classId ? classAssignmentsQueryKey(classId) : ['class', 'assignments', '__none'],
+    queryFn: () => getClassAssignments(classId!),
+    enabled: Boolean(classId),
+    staleTime: Infinity,
+    gcTime: CLASS_PAGE_GC_MS,
+  });
+
+  const announcementsQuery = useQuery({
+    queryKey: classId ? classAnnouncementsQueryKey(classId) : ['class', 'announcements', '__none'],
+    queryFn: () => getClassAnnouncements(classId!),
+    enabled: Boolean(classId),
+    staleTime: Infinity,
+    gcTime: CLASS_PAGE_GC_MS,
+  });
+
+  const classDetails = detailsQuery.data ?? null;
+  const assignments = assignmentsQuery.data ?? [];
+  const announcements = announcementsQuery.data ?? [];
+
+  useEffect(() => {
+    if (!classId) return;
+    const mockTests: CodingTest[] = [
+      {
+        id: '1',
+        title: 'Data Structures Quiz',
+        description: 'Test covering arrays, linked lists, and stacks',
+        duration: 90,
+        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 90 * 60 * 1000),
+        status: 'SCHEDULED',
+        classId: classId,
+        problems: [],
+        sessions: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+    setTests(mockTests);
+  }, [classId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      const assignmentsData = assignmentsQuery.data;
+      if (!assignmentsData?.length || user?.role !== 'TEACHER') {
+        setLatestAssignmentLateCounts({});
+        return;
+      }
+      const sorted = [...assignmentsData].sort((a, b) => {
+        const aTime = new Date((a as { dueDate?: string; createdAt?: string }).dueDate || (a as { createdAt?: string }).createdAt).getTime();
+        const bTime = new Date((b as { dueDate?: string; createdAt?: string }).dueDate || (b as { createdAt?: string }).createdAt).getTime();
+        return bTime - aTime;
+      });
+      const latest = sorted[0];
+      if (!latest) {
+        setLatestAssignmentLateCounts({});
+        return;
+      }
+      try {
+        const details: unknown = await getAssignmentDetails(latest.id);
+        if (cancelled) return;
+        const d = details as {
+          dueDate?: string;
+          problems?: Array<{ submissions?: Array<{ userId?: string; completed?: boolean; isLate?: boolean; submissionTime?: string }> }>;
+        };
+        if (d && Array.isArray(d.problems)) {
+          const counts: Record<string, number> = {};
+          d.problems.forEach((p) => {
+            if (Array.isArray(p.submissions)) {
+              p.submissions.forEach((s) => {
+                let isLate = s?.isLate;
+                if (isLate === undefined && s?.submissionTime && d?.dueDate) {
+                  const dueDateEndOfDay = new Date(d.dueDate);
+                  dueDateEndOfDay.setUTCHours(23, 59, 59, 999);
+                  isLate = new Date(s.submissionTime).getTime() > dueDateEndOfDay.getTime();
+                }
+                if (s?.completed && isLate && s.userId) {
+                  counts[s.userId] = (counts[s.userId] || 0) + 1;
                 }
               });
-              setLatestAssignmentLateCounts(counts);
             }
-          } catch (e) {
-            // Non-critical; ignore
-          }
+          });
+          setLatestAssignmentLateCounts(counts);
         }
-        
-        // Mock test data for now - will be replaced with API call
-        const mockTests: CodingTest[] = [
-          {
-            id: '1',
-            title: 'Data Structures Quiz',
-            description: 'Test covering arrays, linked lists, and stacks',
-            duration: 90,
-            startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-            endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 90 * 60 * 1000),
-            status: 'SCHEDULED',
-            classId: classId,
-            problems: [],
-            sessions: [],
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }
-        ];
-        setTests(mockTests);
-      } catch (error) {
-        console.error('Error fetching class details:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load class details.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
+      } catch {
+        if (!cancelled) setLatestAssignmentLateCounts({});
       }
     };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentsQuery.data, user?.role]);
 
-    fetchData();
-  }, [classId, toast]);
+  useEffect(() => {
+    if (detailsQuery.isError && !detailsQuery.data) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load class details.',
+        variant: 'destructive',
+      });
+    }
+  }, [detailsQuery.isError, detailsQuery.data, toast]);
 
+  useDataRefresh(
+    DATA_REFRESH_EVENTS.CLASSES_UPDATED,
+    () => {
+      if (classId) invalidateClassPageQueries(queryClient, classId);
+    },
+    [classId, queryClient]
+  );
 
+  useDataRefresh(
+    DATA_REFRESH_EVENTS.ASSIGNMENTS_UPDATED,
+    (data?: { classId?: string }) => {
+      if (classId && (!data?.classId || data.classId === classId)) {
+        invalidateClassPageQueries(queryClient, classId);
+      }
+    },
+    [classId, queryClient]
+  );
 
   const handleDeleteAssignment = async (assignmentId: string) => {
     try {
       await deleteAssignment(assignmentId);
-      
-      // Update local state immediately for better UX
-      setAssignments(assignments.filter(a => a.id !== assignmentId));
-      
-      // Refresh class details to ensure all counts are updated
-      if (classId) {
-        try {
-          const [refreshedClassData, refreshedAssignments] = await Promise.all([
-            getClassDetails(classId),
-            getClassAssignments(classId),
-          ]);
-          setClassDetails(refreshedClassData);
-          setAssignments(refreshedAssignments);
-        } catch (refreshError) {
-          console.error('Error refreshing data after deletion:', refreshError);
-          // Don't show error toast for refresh failure since main operation succeeded
-        }
-      }
-      
+      if (classId) invalidateClassPageQueries(queryClient, classId);
+
       // Trigger refresh events for other pages
       triggerDataRefresh(DATA_REFRESH_EVENTS.ASSIGNMENTS_UPDATED, { classId, deletedAssignmentId: assignmentId });
       triggerDataRefresh(DATA_REFRESH_EVENTS.CLASSES_UPDATED);
@@ -199,16 +271,9 @@ const ClassDetailsPage: React.FC = () => {
 
     try {
       await removeStudentFromClass(classId, studentId);
-      
-      // Update local state immediately for better UX
-      if (classDetails) {
-        const updatedStudents = classDetails.students.filter(s => s.id !== studentId);
-        setClassDetails({
-          ...classDetails,
-          students: updatedStudents
-        });
-      }
-      
+      void queryClient.invalidateQueries({ queryKey: classDetailsQueryKey(classId) });
+      void queryClient.invalidateQueries({ queryKey: classmatesQueryKey(classId) });
+
       // Trigger refresh events
       triggerDataRefresh(DATA_REFRESH_EVENTS.CLASSES_UPDATED);
       
@@ -238,7 +303,7 @@ const ClassDetailsPage: React.FC = () => {
     navigate(`/classes/${classId}/announcements/new`);
   };
 
-  if (isLoading) {
+  if (classId && detailsQuery.isPending && !detailsQuery.data) {
     return <LoadingScreen />;
   }
 
@@ -257,6 +322,68 @@ const ClassDetailsPage: React.FC = () => {
     { value: 'assignments', label: 'Assignments', content: <AssignmentList assignments={assignments as StudentAssignment[]} showStatus /> },
     { value: 'tests', label: 'Tests', content: <TestList tests={tests} /> },
     { value: 'announcements', label: 'Announcements', content: <AnnouncementList announcements={announcements} isTeacher={false} classId={classId} /> },
+    {
+      value: 'classmates',
+      label: 'Classmates',
+      content: (
+        <div className="space-y-4">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search classmates..."
+              value={classmateSearch}
+              onChange={(e) => setClassmateSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          {classmatesQuery.isPending ? (
+            <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading classmates…
+            </div>
+          ) : classmatesQuery.isError ? (
+            <p className="text-sm text-destructive">Could not load classmates.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {(classmatesQuery.data ?? [])
+                .filter((c) => c.name.toLowerCase().includes(classmateSearch.toLowerCase()))
+                .map((c) => (
+                  <Card
+                    key={c.id}
+                    className="cursor-pointer transition-shadow hover:shadow-md"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      navigate(`/classes/${classId}/peers/${c.id}`, { state: { classmate: c } })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`/classes/${classId}/peers/${c.id}`, { state: { classmate: c } });
+                      }
+                    }}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">{c.name}</CardTitle>
+                      <CardDescription>
+                        {c.leetcodeUsername ? `@${c.leetcodeUsername} · LeetCode` : 'Platforms optional'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-xs text-muted-foreground">
+                      {c.portfolio?.published ? (
+                        <Badge variant="secondary">Portfolio live</Badge>
+                      ) : (
+                        <Badge variant="outline">Portfolio not published</Badge>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
   ];
 
   const teacherTabs = [
@@ -380,7 +507,7 @@ const ClassDetailsPage: React.FC = () => {
         // Update URL to reflect current tab
         navigate(`/classes/${classId}?tab=${value}`, { replace: true });
       }} className="mt-6">
-        <TabsList className={`grid w-full ${isTeacher ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${isTeacher ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
           {isTeacher && (
             <TabsTrigger value="overview">
               <TrendingUp className="mr-2 h-4 w-4" /> Overview
@@ -400,6 +527,11 @@ const ClassDetailsPage: React.FC = () => {
            <TabsTrigger value="announcements">
             <Megaphone className="mr-2 h-4 w-4" /> Announcements
           </TabsTrigger>
+          {!isTeacher && (
+            <TabsTrigger value="classmates">
+              <Users className="mr-2 h-4 w-4" /> Classmates
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {isTeacher && (

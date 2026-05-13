@@ -1,5 +1,12 @@
 import api from './axios';
-import { Class, ClassWithStudents, Assignment, TeacherAssignment, StudentAssignment } from '../types';
+import {
+  Class,
+  ClassWithStudents,
+  Assignment,
+  TeacherAssignment,
+  StudentAssignment,
+  ClassmatePublic,
+} from '../types';
 
 export const getClasses = async (): Promise<{ classes: Class[] }> => {
   const response = await api.get('/classes');
@@ -71,5 +78,18 @@ export const unarchiveClass = async (classId: string): Promise<{ message: string
 
 export const getArchivedClasses = async (): Promise<{ classes: Class[] }> => {
   const response = await api.get('/classes/archived');
+  return response.data;
+};
+
+export const getClassmates = async (classId: string): Promise<{ classmates: ClassmatePublic[] }> => {
+  const response = await api.get(`/classes/${classId}/classmates`);
+  return response.data;
+};
+
+export const getClassmateByUserId = async (
+  classId: string,
+  userId: string
+): Promise<{ classmate: ClassmatePublic }> => {
+  const response = await api.get(`/classes/${classId}/classmates/${userId}`);
   return response.data;
 };

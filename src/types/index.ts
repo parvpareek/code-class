@@ -14,6 +14,13 @@ export interface User {
   leetcodeMediumSolved?: number;
   leetcodeHardSolved?: number;
   createdAt: string;
+  /** Same shape as portfolio activity payloads. */
+  activity?: {
+    githubByDate: Record<string, number>;
+    dsaByDate: Record<string, number>;
+    /** Same as dsaByDate; used for heatmap “platforms” mode. */
+    practiceByDate: Record<string, number>;
+  };
 }
 
 export interface Class {
@@ -174,6 +181,7 @@ export interface DifficultyData {
 }
 
 export interface LeaderboardEntry {
+  /** Stable user id (present for student leaderboard peers after privacy-safe API update). */
   id?: string;
   rank: number;
   name: string;
@@ -189,6 +197,25 @@ export interface LeaderboardEntry {
   leetcodeEasySolved?: number;
   leetcodeMediumSolved?: number;
   leetcodeHardSolved?: number;
+}
+
+/** Class roster / peer profile (no email). */
+export interface ClassmatePortfolioSummary {
+  slug: string;
+  published: boolean;
+}
+
+export interface ClassmatePublic {
+  id: string;
+  name: string;
+  leetcodeUsername: string | null;
+  gfgUsername: string | null;
+  hackerrankUsername: string | null;
+  leetcodeTotalSolved: number | null;
+  leetcodeEasySolved: number | null;
+  leetcodeMediumSolved: number | null;
+  leetcodeHardSolved: number | null;
+  portfolio: ClassmatePortfolioSummary | null;
 }
 
 export interface AuthState {
@@ -353,4 +380,27 @@ export interface DSAStats {
   hard_total: number;
   overall_progress: number;
 }
+
+export type {
+  PortfolioTheme,
+  FeaturedSignal,
+  PortfolioSectionId,
+  PortfolioHeroLinks,
+  PortfolioHero,
+  PortfolioProject,
+  PortfolioProjectStory,
+  PortfolioProjectStoryImage,
+  PortfolioStoryImageAfter,
+  HowIBuild,
+  SkillCategory,
+  PortfolioExperience,
+  PortfolioEducation,
+  PortfolioSectionsConfig,
+  PortfolioFeaturedLayout,
+  PortfolioHeatmapMode,
+  PortfolioContent,
+  PortfolioCompleteness,
+  MyPortfolioDto,
+  PublicPortfolioDto,
+} from './portfolio';
 
