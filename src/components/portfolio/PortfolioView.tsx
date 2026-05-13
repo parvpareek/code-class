@@ -35,6 +35,7 @@ import { PortfolioActivityHeatmaps } from '@/components/portfolio/PortfolioActiv
 import { PortfolioHeatmapModeToggle } from '@/components/portfolio/PortfolioHeatmapModeToggle';
 import { resolvePortfolioHeroAvatarUrl } from '@/lib/githubAvatar';
 import { formatEducationDateRange, formatExperienceDateRange } from '@/lib/portfolioDates';
+import { projectBuiltSummaryLine } from '@/lib/portfolioMerge';
 import { FeaturedProjectCard } from '@/components/portfolio/FeaturedProjectCard';
 import { markSignatureIntroPlayed, shouldPlaySignatureIntro, clearSignatureIntroPlayed } from '@/lib/portfolioIntroGate';
 import { cn } from '@/lib/utils';
@@ -142,11 +143,27 @@ function ProjectStoryBody({ p }: { p: PortfolioProject }) {
     { field: 'futurePlans', body: s?.futurePlans },
   ];
   const imgs = p.storyImages ?? [];
-  const legacy = (p.longDescription ?? '').trim();
+  const ldFull = (p.longDescription ?? '').trim();
+  const wb = (p.whyBuilt ?? '').trim();
   const structured = hasStructuredStory(p);
+  const legacy = (p.longDescription ?? '').trim();
+  const sd = (p.shortDescription ?? '').trim();
+  const whatBuiltBody = ldFull || sd;
 
   return (
     <div className="space-y-6 text-left">
+      {whatBuiltBody ? (
+        <div className="space-y-2">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">What we built</h4>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{whatBuiltBody}</p>
+        </div>
+      ) : null}
+      {wb ? (
+        <div className="space-y-2">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Intent</h4>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{wb}</p>
+        </div>
+      ) : null}
       {order.map(({ field, body }) => {
         const text = (body ?? '').trim();
         const afterImgs = imgs.filter((im) => im.after === field);
@@ -177,7 +194,7 @@ function ProjectStoryBody({ p }: { p: PortfolioProject }) {
           </div>
         );
       })}
-      {!structured && legacy ? (
+      {!structured && legacy && !whatBuiltBody ? (
         <div className="space-y-2">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Story</h4>
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{legacy}</p>
@@ -592,18 +609,13 @@ export function PortfolioView({
                       >
                         {heroTitle}
                       </p>
-                      {(content.hero.statusLine ?? '').trim() ? (
-                        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--pf-muted)]">
-                          {content.hero.statusLine}
-                        </p>
+                      {(content.hero.tagline ?? '').trim() ? (
+                        <p className="text-sm font-medium opacity-80">{content.hero.tagline}</p>
                       ) : null}
                       {(content.hero.currentFocus ?? '').trim() ? (
                         <p className="text-sm font-medium leading-snug text-[color:var(--pf-accent)] opacity-95">
                           {content.hero.currentFocus}
                         </p>
-                      ) : null}
-                      {(content.hero.tagline ?? '').trim() ? (
-                        <p className="text-sm font-medium opacity-80">{content.hero.tagline}</p>
                       ) : null}
                       {(content.hero.bio ?? '').trim() ? (
                         <p className="max-w-xl text-sm leading-relaxed text-[var(--pf-muted)]">{content.hero.bio}</p>
@@ -1214,9 +1226,9 @@ export function PortfolioView({
                 <DialogTitle className="text-2xl font-bold tracking-tight">{projectOpen.title}</DialogTitle>
                 <DialogDescription asChild>
                   <div className="space-y-2 text-left">
-                    <p className="text-base text-foreground/90">{projectOpen.shortDescription}</p>
-                    {(projectOpen.whyBuilt ?? '').trim() ? (
-                      <p className="text-sm italic leading-relaxed text-foreground/85">{projectOpen.whyBuilt}</p>
+                    {(projectOpen.longDescription ?? '').trim().length >= 28 &&
+                    projectBuiltSummaryLine(projectOpen).trim() ? (
+                      <p className="text-base text-foreground/90">{projectBuiltSummaryLine(projectOpen)}</p>
                     ) : null}
                   </div>
                 </DialogDescription>

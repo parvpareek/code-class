@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import type { PortfolioProject, PortfolioTheme } from '@/types/portfolio';
+import { projectBuiltSummaryLine } from '@/lib/portfolioMerge';
 import { cn } from '@/lib/utils';
 
 function metricsEntries(metrics: Record<string, string> | undefined): [string, string][] {
@@ -88,6 +89,8 @@ export function FeaturedProjectCard({
   const focusRing =
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pf-accent)]';
 
+  const builtLine = projectBuiltSummaryLine(p);
+
   if (campaign && featuredLayout === 'editorial') {
     return (
       <button
@@ -110,12 +113,7 @@ export function FeaturedProjectCard({
                 <span className="pf-campaign-title inline-block">{p.title}</span>
               </span>
             </h3>
-            <p className="max-w-2xl text-sm leading-relaxed text-[var(--pf-muted)] md:text-[15px]">{p.shortDescription}</p>
-            {(p.whyBuilt ?? '').trim() ? (
-              <p className="max-w-xl border-l-2 border-[color:var(--pf-accent)] pl-4 text-sm italic leading-relaxed text-[var(--pf-text)] opacity-[0.88] md:text-[15px]">
-                {p.whyBuilt}
-              </p>
-            ) : null}
+            <p className="max-w-2xl text-sm leading-relaxed text-[var(--pf-muted)] md:text-[15px]">{builtLine}</p>
           </div>
           {hasPreview ? (
             <div className="relative aspect-video max-h-[14rem] w-full overflow-hidden border border-[var(--pf-border)] md:max-h-[16rem]">
@@ -148,9 +146,7 @@ export function FeaturedProjectCard({
         <h3 className="pf-display pf-campaign-title-wrap mt-4 text-lg font-semibold leading-snug tracking-[-0.025em] md:mt-5 md:text-xl">
           <span className="pf-campaign-title inline-block">{p.title}</span>
         </h3>
-        <p className="mt-3 flex-1 text-xs leading-relaxed text-[var(--pf-muted)] md:mt-4 md:text-sm">
-          {p.shortDescription}
-        </p>
+        <p className="mt-3 flex-1 text-xs leading-relaxed text-[var(--pf-muted)] md:mt-4 md:text-sm">{builtLine}</p>
         <span className="mt-6 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--pf-accent)] md:mt-7">
           View story
         </span>
@@ -222,12 +218,7 @@ export function FeaturedProjectCard({
           </div>
           <div className="min-w-0 flex-1 space-y-3 text-center md:text-left">
             <h3 className="pf-display text-2xl font-bold leading-tight tracking-tight md:text-3xl">{p.title}</h3>
-            <p className="text-sm leading-relaxed text-[var(--pf-muted)]">{p.shortDescription}</p>
-            {(p.whyBuilt ?? '').trim() ? (
-              <p className="border-l-2 border-[color:var(--pf-accent)] pl-3 text-left text-sm italic leading-relaxed opacity-90">
-                {p.whyBuilt}
-              </p>
-            ) : null}
+            <p className="text-sm leading-relaxed text-[var(--pf-muted)]">{builtLine}</p>
             {highs.length ? (
               <ul className="list-inside list-disc space-y-1 text-left text-[12px] leading-relaxed text-[var(--pf-muted)]">
                 {highs.map((h, hi) => (
@@ -279,7 +270,7 @@ export function FeaturedProjectCard({
             ) : null}
           </div>
           <h3 className="pf-display mt-2 text-lg font-bold leading-snug">{p.title}</h3>
-          <p className="mt-2 line-clamp-3 text-xs leading-relaxed opacity-85">{p.shortDescription}</p>
+          <p className="mt-2 line-clamp-3 text-xs leading-relaxed opacity-85">{builtLine}</p>
           {ghStatsLine || manualMets.length ? (
             <p className="mt-2 line-clamp-2 text-[9px] leading-tight text-[var(--pf-muted)]">
               {ghStatsLine ? <span>{ghStatsLine}</span> : null}

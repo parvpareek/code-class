@@ -269,7 +269,6 @@ const PortfolioStudioPage: React.FC = () => {
   const [ghError, setGhError] = useState<string | null>(null);
   const [pendingGithubDraft, setPendingGithubDraft] = useState<Partial<PortfolioContent> | null>(null);
   const [curateSelection, setCurateSelection] = useState<string[]>([]);
-  const [projectStoryByRepo, setProjectStoryByRepo] = useState<Record<string, string>>({});
 
   const [resumePdfBusy, setResumePdfBusy] = useState(false);
   const [resumeDraft, setResumeDraft] = useState<Partial<PortfolioContent> | null>(null);
@@ -423,7 +422,6 @@ const PortfolioStudioPage: React.FC = () => {
     setGhLoading(false);
     setPendingGithubDraft(null);
     setCurateSelection([]);
-    setProjectStoryByRepo({});
     setResumeDraft(null);
     setResumePlainText('');
     setResumePick({ hero: true, skills: true, experience: true, education: true });
@@ -552,16 +550,22 @@ const PortfolioStudioPage: React.FC = () => {
     }
   };
 
-  const runGeneration = useCallback(async () => {
+  const runGeneration = useCallback(async (opts?: { skipAi?: boolean }) => {
     if (!data) return;
-    const storedKey = getStudioGeminiKey();
-    const trimmedInput = aiKeyInput.trim();
+    const storedKey = opts?.skipAi ? null : getStudioGeminiKey();
+    const trimmedInput = opts?.skipAi ? '' : aiKeyInput.trim();
     const userGeminiKey =
       storedKey && storedKey.length >= 20 ? storedKey : trimmedInput.length >= 20 ? trimmedInput : '';
     const useAiBulk = userGeminiKey.length >= 20;
-    const stepLabels = useAiBulk ? [...GEN_STEPS, GEN_STEP_AI] : [...GEN_STEPS];
-    genProgressLabelsRef.current = stepLabels;
-    genProgressTotalRef.current = stepLabels.length;
+
+    if (useAiBulk) {
+      const stepLabels = [...GEN_STEPS, GEN_STEP_AI];
+      genProgressLabelsRef.current = stepLabels;
+      genProgressTotalRef.current = stepLabels.length;
+    } else {
+      genProgressLabelsRef.current = ['Saving your portfolio…'];
+      genProgressTotalRef.current = 1;
+    }
 
     setPhase('generating');
     setGenIndex(0);
@@ -569,11 +573,14 @@ const PortfolioStudioPage: React.FC = () => {
       requestAnimationFrame(() => requestAnimationFrame(() => r()));
     });
     try {
-      const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const stepDelay = prefersReduced ? 120 : 550;
-      for (let i = 0; i < GEN_STEPS.length; i++) {
-        setGenIndex(i);
-        await new Promise((r) => setTimeout(r, stepDelay));
+      if (useAiBulk) {
+        const prefersReduced =
+          typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const stepDelay = prefersReduced ? 120 : 550;
+        for (let i = 0; i < GEN_STEPS.length; i++) {
+          setGenIndex(i);
+          await new Promise((r) => setTimeout(r, stepDelay));
+        }
       }
 
       let next = normalizePortfolioContent(structuredClone(data.content));
@@ -589,19 +596,7 @@ const PortfolioStudioPage: React.FC = () => {
         order: sectionOrderForSignal('PROJECTS'),
       };
 
-      if (next.projects?.length && Object.keys(projectStoryByRepo).length > 0) {
-        next = {
-          ...next,
-          projects: next.projects.map((proj) => {
-            const key = proj.id?.replace(/^gh-/, '') ?? '';
-            const note = projectStoryByRepo[key]?.trim();
-            if (!note) return proj;
-            return { ...proj, longDescription: note };
-          }),
-        };
-      }
-
-      if (next.projects?.length) {
+      if (useAiBulk && next.projects?.length) {
         const projects = [...next.projects];
         for (let i = 0; i < projects.length; i++) {
           const proj = projects[i];
@@ -684,7 +679,6 @@ const PortfolioStudioPage: React.FC = () => {
     aiKeyInput,
     qc,
     toast,
-    projectStoryByRepo,
     theme,
   ]);
 
@@ -954,16 +948,6 @@ const PortfolioStudioPage: React.FC = () => {
                         <span>Updated {new Date(r.updatedAt).toLocaleDateString()}</span>
                       </div>
                     </button>
-                    <Textarea
-                      placeholder="Optional: what was interesting about building this?"
-                      className="mt-2 min-h-[52px] resize-none text-xs"
-                      value={projectStoryByRepo[r.name] ?? ''}
-                      onChange={(e) =>
-                        setProjectStoryByRepo((prev) => ({ ...prev, [r.name]: e.target.value }))
-                      }
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => e.stopPropagation()}
-                    />
                   </div>
                 );
               })}
@@ -1167,7 +1151,7 @@ const PortfolioStudioPage: React.FC = () => {
               variant="ghost"
               onClick={() => {
                 clearStudioGeminiKey();
-                void runGeneration();
+                void runGeneration({ skipAi: true });
               }}
             >
               Skip for now

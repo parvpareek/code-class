@@ -418,6 +418,11 @@ export const fillPortfolioWithAi = async (req: Request, res: Response): Promise<
     res.json(fill);
   } catch (e) {
     console.error('fillPortfolioWithAi', e);
-    res.status(500).json({ message: 'AI portfolio fill failed' });
+    const timedOut = e instanceof Error && /timed out/i.test(e.message);
+    res.status(500).json({
+      message: timedOut
+        ? 'AI request timed out. Try again, or ask your host to allow longer HTTP timeouts for /api/v1/portfolio/me/fill-with-ai.'
+        : 'AI portfolio fill failed',
+    });
   }
 };

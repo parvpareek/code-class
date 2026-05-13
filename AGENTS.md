@@ -29,10 +29,16 @@ The client talks to the server only over HTTP (configured via `VITE_API_URL`, no
 ## Server layout (high level)
 
 - `server/src/index.ts` — Express app, CORS (allowlist + `ADDITIONAL_CORS_ORIGINS`), compression, route mounting, **no WebSocket initialization** (commented as removed for memory).
-- `server/src/api/` — Feature routers: `auth`, `classes`, `assignments`, `analytics`, `students`, `announcements`, `tests`, `monitoring`, `dsa-progress`, `admin`.
+- `server/src/api/` — Feature routers: `auth`, `classes`, `assignments`, `analytics`, `students`, `announcements`, `tests`, `monitoring`, `dsa-progress`, `admin`, **`portfolio`**.
 - `server/src/services/` — Domain services (submissions, platforms, email, anti-cheat). WebSocket server code was removed (HTTP-only API).
 - `server/src/lib/` — `prisma.ts`, `redis.ts` (real Redis or in-memory stub via `DISABLE_REDIS` / `USE_MEMORY_REDIS`).
 - `server/prisma/schema.prisma` — **only** database schema and Prisma client generation (root-level `prisma/` stub was removed).
+
+## Portfolio (student profiles)
+
+- **Server**: `server/src/api/portfolio/` — `GET/PUT /api/v1/portfolio/me`, public slug, GitHub preview/readme, resume PDF parse, field suggest (`/me/suggest`), **bulk AI fill** `POST /me/fill-with-ai` (two Gemini calls in `portfolio.bulkFill.ts`; user-supplied key). Model id: `server/src/lib/geminiModel.ts` (`GEMINI_MODEL` env). **HTTP**: `server/src/index.ts` uses a longer `req`/`res` timeout for `/portfolio/me/fill-with-ai`, `/parse-resume`, and `/me/suggest` (`PORTFOLIO_AI_HTTP_TIMEOUT_MS`, default 300s). Optional `GEMINI_CALL_TIMEOUT_MS` per Gemini round-trip (see `server/supabase-env-template.txt`).
+- **Client**: `src/pages/portfolio/PortfolioStudioPage.tsx` (wizard + studio), `PublicPortfolioPage.tsx`, `src/components/portfolio/*`, `src/lib/portfolioMerge.ts` (draft merge, **`mergeBulkAiPortfolioFill`**, **`projectBuiltSummaryLine`** for card copy), `src/lib/studioGeminiKey.ts`, `src/api/portfolio.ts` (fill uses extended Axios timeout). **Featured cards** use one “what we built” line; full description and intent (`whyBuilt`) + story sections (**Motivation** etc.) order in `PortfolioView` → `ProjectStoryBody`.
+- **Types**: `src/types/portfolio.ts` (client); server uses Prisma + `portfolio.schema.ts`.
 
 ## Configuration and env
 

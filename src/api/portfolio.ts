@@ -98,7 +98,7 @@ export async function fillPortfolioWithAi(body: {
   portfolioContext: string;
   projectSkeletons: Array<{ title: string; githubUrl?: string; techStack?: string[] }>;
 }): Promise<PortfolioBulkAiFillPayload> {
-  const { data } = await api.post('/portfolio/me/fill-with-ai', body);
+  const { data } = await api.post('/portfolio/me/fill-with-ai', body, { timeout: 310_000 });
   return data;
 }
 

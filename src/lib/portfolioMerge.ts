@@ -2,9 +2,21 @@ import type {
   PortfolioContent,
   PortfolioEducation,
   PortfolioExperience,
+  PortfolioHero,
   PortfolioProject,
 } from '@/types/portfolio';
 import { githubProfilePngUrl, upsampleGithubAvatarUrl } from '@/lib/githubAvatar';
+
+/** Card / dialog: one factual line — first paragraph of longDescription when substantive, else shortDescription. */
+export function projectBuiltSummaryLine(p: Pick<PortfolioProject, 'shortDescription' | 'longDescription'>): string {
+  const ld = (p.longDescription ?? '').trim();
+  const sd = (p.shortDescription ?? '').trim();
+  if (ld.length >= 28) {
+    const first = ld.split(/\n+/).map((x) => x.trim()).find(Boolean) ?? ld;
+    return first.slice(0, 280);
+  }
+  return sd;
+}
 
 /** Empty portfolio JSON for re-running the studio wizard (matches server `defaultPortfolioContent`). */
 export function freshOnboardingPortfolioContent(): PortfolioContent {
@@ -205,6 +217,71 @@ function aiStr(v: unknown, max: number): string {
   return v.trim().slice(0, max);
 }
 
+function tokenSet(s: string): Set<string> {
+  return new Set(
+    s
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length > 2)
+  );
+}
+
+/** Share of smaller set's tokens that appear in the other string (0–1). */
+function tokenOverlapRatio(a: string, b: string): number {
+  const A = tokenSet(a);
+  const B = tokenSet(b);
+  if (A.size === 0 || B.size === 0) return 0;
+  let n = 0;
+  for (const t of A) if (B.has(t)) n++;
+  return n / Math.min(A.size, B.size);
+}
+
+/** Turn prose internship lines into "Intern @ Org" when possible. */
+function normalizeRoleTitleAtFormat(roleTitle: string): string {
+  let t = roleTitle.trim();
+  if (!t) return t;
+  let m = t.match(/^currently\s+intern(?:ing)?\s+at\s+(.+)$/i);
+  if (!m) m = t.match(/^interning\s+at\s+(.+)$/i);
+  if (!m) m = t.match(/^currently\s+working\s+at\s+(.+)$/i);
+  if (!m) m = t.match(/^currently\s+employed\s+at\s+(.+)$/i);
+  if (m) {
+    const org = m[1].trim().replace(/\.$/, '');
+    return aiStr(`Intern @ ${org}`, 72);
+  }
+  if (/^intern\s+at\s+/i.test(t) && !t.includes('@')) {
+    m = t.match(/^intern\s+at\s+(.+)$/i);
+    if (m) return aiStr(`Intern @ ${m[1].trim().replace(/\.$/, '')}`, 72);
+  }
+  return aiStr(t, 72);
+}
+
+/** After bulk AI merge: one headline role line, tagline carries pitch; drop redundant micro-lines. */
+function coalesceBulkHeroFields(hero: PortfolioHero): PortfolioHero {
+  const h = { ...hero };
+  h.roleTitle = normalizeRoleTitleAtFormat((h.roleTitle ?? '').trim()) || h.roleTitle;
+  const role = (h.roleTitle ?? '').trim();
+  const tag = (h.tagline ?? '').trim();
+  let focus = (h.currentFocus ?? '').trim();
+  let strong = (h.strongestSkill ?? '').trim();
+
+  h.statusLine = '';
+
+  if (focus && tag && tokenOverlapRatio(focus, tag) >= 0.28) focus = '';
+  if (focus && role && tokenOverlapRatio(focus, role) >= 0.38) focus = '';
+  if (tag.length >= 40 && focus && tokenOverlapRatio(focus, tag) >= 0.18) focus = '';
+  h.currentFocus = focus ? aiStr(focus, 40) : '';
+
+  const tagFocus = `${tag} ${h.currentFocus ?? ''}`;
+  if (strong && tag && tokenOverlapRatio(strong, tagFocus) >= 0.42) strong = '';
+  if (strong && role && tokenOverlapRatio(strong, role) >= 0.35) strong = '';
+  if (strong && /llm|agent|ml|ai|deep|graph|neo4j/i.test(tag) && /llm|agent|ml|ai|deep|graph|neo4j/i.test(strong)) {
+    if (tokenOverlapRatio(strong, tag) >= 0.22) strong = '';
+  }
+  h.strongestSkill = strong ? aiStr(strong, 48) : '';
+
+  return h;
+}
+
 export type PortfolioBulkAiFillPayload = {
   hero?: Record<string, unknown>;
   howIBuild?: Record<string, unknown> | null;
@@ -224,9 +301,9 @@ function mapAiExperience(e: unknown): PortfolioExperience | null {
   const bullets = Array.isArray(o.bullets)
     ? o.bullets
         .filter((x): x is string => typeof x === 'string')
-        .map((s) => s.trim().slice(0, 800))
+        .map((s) => s.trim().slice(0, 120))
         .filter(Boolean)
-        .slice(0, 20)
+        .slice(0, 4)
     : undefined;
   const stack = Array.isArray(o.stack)
     ? o.stack
@@ -257,7 +334,7 @@ function mapAiEducation(e: unknown): PortfolioEducation | null {
     startDate: o.startDate ? aiStr(o.startDate, 40) : undefined,
     endDate: o.endDate ? aiStr(o.endDate, 40) : undefined,
     current: o.current === true,
-    details: o.details ? aiStr(o.details, 2000) : undefined,
+    details: o.details ? aiStr(o.details, 400) : undefined,
   };
 }
 
@@ -267,37 +344,37 @@ function mergeProjectWithAiPatch(base: PortfolioProject, patch: unknown): Portfo
   const techStack = Array.isArray(o.techStack)
     ? o.techStack
         .filter((x): x is string => typeof x === 'string')
-        .map((s) => s.trim().slice(0, 40))
+        .map((s) => s.trim().slice(0, 32))
         .filter(Boolean)
-        .slice(0, 20)
+        .slice(0, 8)
     : base.techStack;
   const engineeringHighlights = Array.isArray(o.engineeringHighlights)
     ? o.engineeringHighlights
         .filter((x): x is string => typeof x === 'string')
-        .map((s) => s.trim().slice(0, 200))
+        .map((s) => s.trim().slice(0, 88))
         .filter(Boolean)
-        .slice(0, 8)
+        .slice(0, 2)
     : base.engineeringHighlights;
   const signalCues = Array.isArray(o.signalCues)
     ? o.signalCues
         .filter((x): x is string => typeof x === 'string')
-        .map((s) => s.trim().slice(0, 40))
+        .map((s) => s.trim().slice(0, 24))
         .filter(Boolean)
-        .slice(0, 10)
+        .slice(0, 3)
     : base.signalCues;
   let metrics: Record<string, string> | undefined;
   if (o.metrics && typeof o.metrics === 'object' && !Array.isArray(o.metrics)) {
     const m: Record<string, string> = {};
     for (const [k, v] of Object.entries(o.metrics as Record<string, unknown>)) {
-      const key = k.trim().slice(0, 40);
-      const val = typeof v === 'string' ? v.trim().slice(0, 80) : String(v ?? '').slice(0, 80);
+      const key = k.trim().slice(0, 24);
+      const val = typeof v === 'string' ? v.trim().slice(0, 48) : String(v ?? '').slice(0, 48);
       if (key && val) m[key] = val;
     }
     if (Object.keys(m).length) metrics = m;
   }
-  const shortDescription = aiStr(o.shortDescription, 280) || base.shortDescription;
-  const whyBuilt = o.whyBuilt !== undefined ? aiStr(o.whyBuilt, 400) || undefined : base.whyBuilt;
-  const longDescription = o.longDescription !== undefined ? aiStr(o.longDescription, 8000) || undefined : base.longDescription;
+  const shortDescription = aiStr(o.shortDescription, 100) || base.shortDescription;
+  const whyBuilt = o.whyBuilt !== undefined ? aiStr(o.whyBuilt, 110) || undefined : base.whyBuilt;
+  const longDescription = o.longDescription !== undefined ? aiStr(o.longDescription, 280) || undefined : base.longDescription;
   return {
     ...base,
     shortDescription: shortDescription.length ? shortDescription : base.shortDescription,
@@ -316,20 +393,26 @@ export function mergeBulkAiPortfolioFill(base: PortfolioContent, fill: Portfolio
   const next = structuredClone(base);
   if (fill.hero && typeof fill.hero === 'object') {
     const h = fill.hero;
-    next.hero = {
+    const openToWork =
+      typeof h.openToWork === 'boolean' ? h.openToWork : (next.hero.openToWork ?? false);
+    next.hero = coalesceBulkHeroFields({
       ...next.hero,
-      roleTitle: h.roleTitle !== undefined ? aiStr(h.roleTitle, 120) || next.hero.roleTitle : next.hero.roleTitle,
-      tagline: h.tagline !== undefined ? aiStr(h.tagline, 200) : next.hero.tagline,
-      bio: h.bio !== undefined ? aiStr(h.bio, 1200) : next.hero.bio,
+      roleTitle: h.roleTitle !== undefined ? aiStr(h.roleTitle, 72) || next.hero.roleTitle : next.hero.roleTitle,
+      tagline: h.tagline !== undefined ? aiStr(h.tagline, 90) : next.hero.tagline,
+      bio: h.bio !== undefined ? aiStr(h.bio, 220) : next.hero.bio,
       location: h.location !== undefined ? aiStr(h.location, 120) : next.hero.location,
-      currentFocus: h.currentFocus !== undefined ? aiStr(h.currentFocus, 200) : next.hero.currentFocus,
-      statusLine: h.statusLine !== undefined ? aiStr(h.statusLine, 120) : next.hero.statusLine,
-      strongestSkill: h.strongestSkill !== undefined ? aiStr(h.strongestSkill, 80) : next.hero.strongestSkill,
-      availabilityText: h.availabilityText !== undefined ? aiStr(h.availabilityText, 80) : next.hero.availabilityText,
-      openToWork: typeof h.openToWork === 'boolean' ? h.openToWork : next.hero.openToWork,
+      currentFocus: h.currentFocus !== undefined ? aiStr(h.currentFocus, 40) : next.hero.currentFocus,
+      statusLine: '',
+      strongestSkill: h.strongestSkill !== undefined ? aiStr(h.strongestSkill, 48) : next.hero.strongestSkill,
+      availabilityText: openToWork
+        ? 'Open to opportunities'
+        : h.availabilityText !== undefined
+          ? aiStr(h.availabilityText, 28) || next.hero.availabilityText
+          : next.hero.availabilityText,
+      openToWork,
       links: next.hero.links,
       avatarUrl: next.hero.avatarUrl,
-    };
+    });
   }
 
   const hb = fill.howIBuild;
@@ -388,7 +471,7 @@ export function mergeBulkAiPortfolioFill(base: PortfolioContent, fill: Portfolio
   }
 
   if (fill.recentActivity?.length) {
-    next.recentActivity = fill.recentActivity.map((s) => s.trim().slice(0, 160)).filter(Boolean).slice(0, 8);
+    next.recentActivity = fill.recentActivity.map((s) => s.trim().slice(0, 72)).filter(Boolean).slice(0, 4);
   }
 
   return next;

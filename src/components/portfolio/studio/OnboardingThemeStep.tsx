@@ -80,7 +80,7 @@ export function OnboardingThemeStep({
                 );
               })}
             </div>
-            <div className="mt-auto flex flex-wrap justify-center gap-2 border-t pt-3 lg:justify-start lg:border-0 lg:pt-0">
+            <div className="mt-auto hidden flex-wrap justify-center gap-2 border-t pt-3 lg:flex lg:justify-start lg:border-0 lg:pt-0">
               <Button type="button" variant="outline" onClick={onBack}>
                 Back
               </Button>
@@ -113,6 +113,14 @@ export function OnboardingThemeStep({
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
             Preview reflects your GitHub selections from the last step.
           </p>
+          <div className="mt-3 flex shrink-0 flex-wrap justify-center gap-2 border-t border-border/60 pt-3 lg:hidden">
+            <Button type="button" variant="outline" onClick={onBack}>
+              Back
+            </Button>
+            <Button type="button" onClick={onContinue}>
+              Continue
+            </Button>
+          </div>
         </main>
       </div>
     </>

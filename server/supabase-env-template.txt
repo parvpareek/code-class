@@ -32,6 +32,10 @@ EMAIL_PASS="your-email-password"
 GEMINI_API_KEY="your-gemini-api-key"
 # Optional: model id for @google/generative-ai generateContent (default: gemini-2.5-flash)
 # GEMINI_MODEL="gemini-2.5-flash"
+# Optional: portfolio bulk-fill — ms per Gemini round-trip (default 120000, max 240000)
+# GEMINI_CALL_TIMEOUT_MS=120000
+# Optional: Express req/res timeout for /portfolio/me/fill-with-ai, parse-resume, suggest (default 300000)
+# PORTFOLIO_AI_HTTP_TIMEOUT_MS=300000
 JUDGE0_API_KEY="your-judge0-api-key"
 
 # Migration specific

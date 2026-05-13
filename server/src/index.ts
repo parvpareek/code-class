@@ -41,10 +41,22 @@ if (process.env.NODE_OPTIONS && !process.env.NODE_OPTIONS.includes('--max-old-sp
 // Add compression middleware (reduces response size by 60-80%)
 app.use(compression());
 
-// Request timeout middleware (prevents hanging requests)
+// Request timeouts: default 30s; portfolio Gemini / PDF routes need much longer.
+const DEFAULT_HTTP_REQ_MS = 30_000;
+const PORTFOLIO_AI_HTTP_REQ_MS = Math.min(
+  Math.max(Number(process.env.PORTFOLIO_AI_HTTP_TIMEOUT_MS) || 300_000, 60_000),
+  600_000
+);
+
 app.use((req, res, next) => {
-  req.setTimeout(30000); // 30 second timeout
-  res.setTimeout(30000);
+  const path = req.path || '';
+  const longPortfolioAi =
+    path.includes('/portfolio/me/fill-with-ai') ||
+    path.includes('/portfolio/me/parse-resume') ||
+    path.includes('/portfolio/me/suggest');
+  const ms = longPortfolioAi ? PORTFOLIO_AI_HTTP_REQ_MS : DEFAULT_HTTP_REQ_MS;
+  req.setTimeout(ms);
+  res.setTimeout(ms);
   next();
 });
 

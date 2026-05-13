@@ -41,8 +41,13 @@ Tone: ${params.tone || 'professional, concise, credible'}.
 ${ctxBlock}
 Return exactly 3 alternatives as a JSON array of strings only.
 Constraints:
-- roleTitle: each line looks like "Student @ University Name" OR "Software Engineer @ Company" OR "Intern @ Org" — pick the best fit from context; max 120 characters each.
-- tagline: max 160 characters each.
+${
+  params.field === 'bio'
+    ? `- bio: max 220 characters each, at most 2 short sentences. Voice: curious problem-solver / student-friendly. No GPA, ranks, or employer laundry lists.`
+    : params.field === 'tagline'
+      ? `- tagline: max 90 characters each, one clause.`
+      : `- roleTitle: each line MUST be "Role @ Organization" or "Student @ University" (max 72 chars). Never "Currently interning at…" — use "Intern @ Company" instead.`
+}
 No markdown fences, no numbering — JSON array only.`;
 
   const result = await model.generateContent(prompt);
@@ -88,8 +93,8 @@ Return a single JSON object with exactly these keys (no markdown):
 }
 
 Rules:
-- bios: three alternative bios. Each 3–6 sentences, 400–900 characters. Mention real projects, technologies, or outcomes when present in context.
-- roleTitles: three short headline lines in the format "Role @ Organization" — e.g. "Computer Science Student @ MIT", "Software Engineer Intern @ Acme", "Teaching Assistant @ …". Use education.institution or employer from context when clear; otherwise a sensible generic role label with org only if stated.
+- bios: three alternative bios. Each HARD max 220 characters, max 2 short sentences. Humble, sharp, problem-solver tone — traits and what you like building. Do NOT paste resume achievements, metrics, or internship paragraphs.
+- roleTitles: three headline lines ONLY as "Role @ Organization" or "Student @ University" (max 72 chars each). Examples: "AI Engineer Intern @ OneClarity AI", "Computer Science Student @ MIT". NEVER use prose like "Currently interning at…" or "Interning at…" — always Title @ Org.
 If context is thin, keep bios shorter but still specific to what you know.`;
 
   const result = await model.generateContent(prompt);
