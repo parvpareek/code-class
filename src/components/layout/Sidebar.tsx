@@ -14,7 +14,8 @@ import {
   Terminal,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FileUser
 } from 'lucide-react';
 import {
   Tooltip,
@@ -62,6 +63,11 @@ const Sidebar: React.FC = () => {
       title: 'Leaderboard',
       href: '/leaderboard',
       icon: <Award className="h-4 w-4" />,
+    },
+    {
+      title: 'Portfolio',
+      href: '/portfolio/studio',
+      icon: <FileUser className="h-4 w-4" />,
     }
   ];
 

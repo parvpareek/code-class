@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../../lib/prisma';
+import { GEMINI_TEXT_MODEL } from '../../lib/geminiModel';
 import { z } from 'zod';
 
 // Validation schemas
@@ -552,7 +553,7 @@ async function generateTestCasesWithGemini(
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: GEMINI_TEXT_MODEL });
 
     const prompt = `
 You are an expert coding problem designer. Generate comprehensive test cases for the following coding problem:

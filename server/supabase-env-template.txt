@@ -30,6 +30,8 @@ EMAIL_PASS="your-email-password"
 
 # API Keys (copy from existing .env)
 GEMINI_API_KEY="your-gemini-api-key"
+# Optional: model id for @google/generative-ai generateContent (default: gemini-2.5-flash)
+# GEMINI_MODEL="gemini-2.5-flash"
 JUDGE0_API_KEY="your-judge0-api-key"
 
 # Migration specific
@@ -37,4 +39,8 @@ JUDGE0_API_KEY="your-judge0-api-key"
 MIGRATION_MODE="false"
 
 # LeetCode Integration (optional)
-# For fetching LeetCode stats and verifying problems 
+# For fetching LeetCode stats and verifying problems
+
+# Portfolio: GitHub contribution calendar (optional). Defaults to the public scraper API
+# https://github.com/grubersjoe/github-contributions-api — override base URL if you self-host:
+# GITHUB_CONTRIBUTIONS_API_BASE="https://github-contributions-api.jogruber.de/v4"

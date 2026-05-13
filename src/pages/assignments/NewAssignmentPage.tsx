@@ -6,7 +6,9 @@ import { createAssignment, extractProblemFromUrl } from '../../api/assignments';
 import { getClasses } from '../../api/classes';
 import { Class } from '../../types';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
+import { invalidateClassPageQueries } from '@/lib/classPageQuery';
 import {
   Form,
   FormControl,
@@ -225,6 +227,7 @@ const ProblemCard = ({
 const NewAssignmentPage = () => {
   const { classId: classIdFromParams } = useParams<{ classId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [teacherClasses, setTeacherClasses] = useState<Class[]>([]);
   const [extractingUrl, setExtractingUrl] = useState<number | null>(null);
   const [extractingAllTitles, setExtractingAllTitles] = useState(false);
@@ -294,6 +297,7 @@ const NewAssignmentPage = () => {
         }))
       });
       toast({ title: 'Assignment created successfully!' });
+      invalidateClassPageQueries(queryClient, data.classId);
       // Navigate to the newly created assignment page
       navigate(`/assignments/${newAssignment.id}`);
     } catch (error) {

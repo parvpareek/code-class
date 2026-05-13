@@ -43,13 +43,21 @@ type LastUsedOAuth = 'GOOGLE' | 'GITHUB';
 type Props = {
   googleHref: string;
   githubHref: string;
-  /** Highlight OAuth button used last time on this device (from localStorage / API sync). */
+  /** Highlight OAuth button used last time on this device (localStorage). */
   lastUsed?: LastUsedOAuth | null;
 };
 
-function LastUsedBadge() {
+function GoogleLastUsedBadge() {
   return (
-    <span className="ml-auto rounded-full bg-brand-blue/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-blue dark:bg-brand-blue/25">
+    <span className="shrink-0 rounded-md bg-blue-600 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
+      Last used
+    </span>
+  );
+}
+
+function GithubLastUsedBadge() {
+  return (
+    <span className="shrink-0 rounded-md border border-white/90 bg-white/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm backdrop-blur-[2px]">
       Last used
     </span>
   );
@@ -61,37 +69,35 @@ export function OAuthBrandButtons({ googleHref, githubHref, lastUsed }: Props) {
     <div className="flex flex-col gap-3">
       <a
         href={googleHref}
+        aria-label={lastUsed === 'GOOGLE' ? 'Continue with Google (last used)' : 'Continue with Google'}
         className={cn(
           googleBtnClass,
-          lastUsed === 'GOOGLE' ? 'justify-between gap-2' : 'justify-center gap-3',
+          lastUsed === 'GOOGLE' ? 'justify-between gap-3' : 'justify-center gap-3',
           lastUsed === 'GOOGLE' &&
-            'ring-2 ring-brand-blue ring-offset-2 ring-offset-background dark:ring-offset-background'
+            'border-blue-500 shadow-md ring-2 ring-blue-500/70 ring-offset-2 ring-offset-background dark:border-blue-500 dark:ring-offset-background'
         )}
       >
-        <span className="flex items-center gap-3">
+        <span className="flex min-w-0 items-center gap-3">
           <GoogleMark className="h-5 w-5 shrink-0" />
-          <span>Continue with Google</span>
+          <span className="truncate">Continue with Google</span>
         </span>
-        {lastUsed === 'GOOGLE' ? <LastUsedBadge /> : null}
+        {lastUsed === 'GOOGLE' ? <GoogleLastUsedBadge /> : null}
       </a>
       <a
         href={githubHref}
+        aria-label={lastUsed === 'GITHUB' ? 'Continue with GitHub (last used)' : 'Continue with GitHub'}
         className={cn(
           githubBtnClass,
-          lastUsed === 'GITHUB' ? 'justify-between gap-2' : 'justify-center gap-3',
+          lastUsed === 'GITHUB' ? 'justify-between gap-3' : 'justify-center gap-3',
           lastUsed === 'GITHUB' &&
-            'ring-2 ring-white/80 ring-offset-2 ring-offset-background dark:ring-offset-background'
+            'shadow-md ring-2 ring-emerald-400/90 ring-offset-2 ring-offset-background dark:ring-offset-background'
         )}
       >
-        <span className="flex items-center gap-3">
+        <span className="flex min-w-0 items-center gap-3">
           <GithubMark className="h-5 w-5 shrink-0 text-white" />
-          <span>Continue with GitHub</span>
+          <span className="truncate">Continue with GitHub</span>
         </span>
-        {lastUsed === 'GITHUB' ? (
-          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-            Last used
-          </span>
-        ) : null}
+        {lastUsed === 'GITHUB' ? <GithubLastUsedBadge /> : null}
       </a>
     </div>
   );

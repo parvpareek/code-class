@@ -17,7 +17,10 @@ function resolveDatabaseUrl(): string | undefined {
     const url = new URL(raw);
     if (!url.searchParams.has('connection_limit')) {
       url.searchParams.set('connection_limit', '10');
-      url.searchParams.set('pool_timeout', '10');
+    }
+    if (!url.searchParams.has('pool_timeout')) {
+      /** Wait longer for a free slot under burst traffic (autosave + class APIs). */
+      url.searchParams.set('pool_timeout', '30');
     }
     return url.toString();
   } catch {
@@ -27,11 +30,19 @@ function resolveDatabaseUrl(): string | undefined {
 
 const databaseUrl = resolveDatabaseUrl();
 
-const prisma = new PrismaClient({
+/**
+ * Prisma Accelerate is meant for `prisma://` datasource URLs. Using the extension on a raw
+ * `postgres://` pool doubles up on pooling behavior and can exhaust connections (P2024) locally.
+ */
+const basePrisma = new PrismaClient({
   ...(databaseUrl ? { datasourceUrl: databaseUrl } : {}),
   log: ['error'],
   errorFormat: 'pretty',
-}).$extends(withAccelerate());
+});
+
+const prisma = (
+  databaseUrl?.startsWith('prisma://') ? basePrisma.$extends(withAccelerate()) : basePrisma
+) as PrismaClient;
 
 // Handle connection errors gracefully
 prisma.$connect().catch((error: unknown) => {

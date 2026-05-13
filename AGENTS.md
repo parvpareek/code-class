@@ -21,6 +21,11 @@ The client talks to the server only over HTTP (configured via `VITE_API_URL`, no
 - `src/hooks/` — shared hooks.
 - `public/data/` + `scripts/prepare-data.mjs` — CSV → `src/lib/questions.json` at prebuild.
 
+### Client auth storage
+
+- **`src/lib/authTokenStorage.ts`** — JWT `getAuthToken` / `setAuthToken` / `clearAuthToken`; prefers `localStorage`, falls back to `sessionStorage` when access is blocked. User-facing Axios (`src/api/axios.ts`) and `AuthContext` use these helpers, not raw `localStorage.getItem('token')`.
+- **`src/lib/lastSignInStorage.ts`** — Client-only hint for which provider was used last (`GOOGLE` | `GITHUB` | `EMAIL_PASSWORD`). **Not** in the database. Key `code-class-last-sign-in-method`. Written from `AuthContext` after email/password login and from `OAuthCallbackPage` when the OAuth redirect hash includes `signInMethod=` (set in `server/src/api/auth/oauth.controller.ts`). Login/signup surfaces use it for badges (`OAuthBrandButtons`) and copy; safe to ignore for API work.
+
 ## Server layout (high level)
 
 - `server/src/index.ts` — Express app, CORS (allowlist + `ADDITIONAL_CORS_ORIGINS`), compression, route mounting, **no WebSocket initialization** (commented as removed for memory).

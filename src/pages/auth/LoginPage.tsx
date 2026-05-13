@@ -20,7 +20,7 @@ import { getApiV1BaseUrl } from '../../config/apiBase';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
 import { OAuthBrandButtons, RoleSegment } from '../../components/auth/OAuthBrandButtons';
 import { cn } from '@/lib/utils';
-import { readLastSignInMethod } from '@/lib/lastSignInStorage';
+import { readLastSignInMethod, lastSignInMethodLabel, type ClientSignInMethod } from '@/lib/lastSignInStorage';
 
 const formSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -35,10 +35,24 @@ const LoginPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [oauthRole, setOauthRole] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
-  const lastMethod = readLastSignInMethod();
+  const [lastMethod, setLastMethod] = useState<ClientSignInMethod | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+
+  useEffect(() => {
+    const sync = () => {
+      const m = readLastSignInMethod();
+      setLastMethod(m);
+      if (m === 'EMAIL_PASSWORD') {
+        setEmailOpen(true);
+      }
+    };
+    sync();
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+
   const lastOAuth =
     lastMethod === 'GOOGLE' || lastMethod === 'GITHUB' ? lastMethod : undefined;
-  const [emailOpen, setEmailOpen] = useState(() => lastMethod === 'EMAIL_PASSWORD');
 
   const { googleHref, githubHref } = useMemo(() => {
     const base = getApiV1BaseUrl();
@@ -80,6 +94,12 @@ const LoginPage: React.FC = () => {
       <div className="text-center space-y-1">
         <h2 className="text-xl font-semibold tracking-tight text-foreground">Sign in</h2>
         <p className="text-sm text-muted-foreground">Use Google, GitHub, or your existing email</p>
+        {lastMethod ? (
+          <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-sm font-medium text-blue-900 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-100">
+            Last signed in with{' '}
+            <span className="font-semibold">{lastSignInMethodLabel(lastMethod)}</span> on this browser.
+          </p>
+        ) : null}
       </div>
 
       {displayError && (
@@ -124,7 +144,7 @@ const LoginPage: React.FC = () => {
             <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', emailOpen && 'rotate-180')} />
             Sign in with email &amp; password
             {lastMethod === 'EMAIL_PASSWORD' ? (
-              <span className="rounded-full bg-brand-blue/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-blue">
+              <span className="shrink-0 rounded-md bg-blue-600 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
                 Last used
               </span>
             ) : null}
