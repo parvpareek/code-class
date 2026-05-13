@@ -1,4 +1,5 @@
 import 'tsconfig-paths/register';
+import './types/express';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -19,7 +20,8 @@ import announcementRoutes from './api/announcements';
 import testRoutes from './api/tests/tests.routes';                                                                                                      
 import monitoringRoutes from './api/monitoring/monitoring.routes';
 import { dsaProgressRoutes } from './api/dsa-progress';
-import adminRoutes from './api/admin/admin.routes';                                                                                                      
+import adminRoutes from './api/admin/admin.routes';
+import { portfolioRoutes } from './api/portfolio';                                                                                                      
 
 // Cron jobs disabled - submission checking should be done on-demand only
 // import { initializeScheduledJobs } from './cron';
@@ -101,6 +103,7 @@ app.use('/api/v1/tests', testRoutes);
 app.use('/api/v1/monitoring', monitoringRoutes);
 app.use('/api/v1/dsa', dsaProgressRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/portfolio', portfolioRoutes);
 
 // Explicit OPTIONS handler for auth endpoints
 app.options('/api/v1/auth/*', (req, res) => {

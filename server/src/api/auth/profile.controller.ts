@@ -5,6 +5,10 @@ import { Credential } from 'leetcode-query';
 import { fetchAuthenticatedStats } from '../../services/enhanced-leetcode.service';
 import { sanitizeUser } from '../../utils/user-sanitization';
 import { logger } from '../../utils/logger';
+import { GEMINI_TEXT_MODEL } from '../../lib/geminiModel';
+import { loadPortfolioActivity } from '../portfolio/portfolio.activity';
+import { safeParsePortfolioContent } from '../portfolio/portfolio.schema';
+import { defaultPortfolioContent } from '../portfolio/portfolio.defaults';
 
 export const getProfile = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!.userId;
@@ -39,7 +43,14 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
 
     // Sanitize user data before sending to frontend
     const sanitizedUser = sanitizeUser(user);
-    res.status(200).json(sanitizedUser);
+    const pf = await prisma.portfolioProfile.findUnique({
+      where: { userId },
+      select: { content: true },
+    });
+    const parsed = pf?.content ? safeParsePortfolioContent(pf.content) : null;
+    const portfolioContent = parsed?.success ? parsed.data : defaultPortfolioContent();
+    const activity = await loadPortfolioActivity(userId, portfolioContent);
+    res.status(200).json({ ...sanitizedUser, activity });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching profile', error });
   }
@@ -307,7 +318,7 @@ async function validateGeminiKey(apiKey: string): Promise<boolean> {
   try {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: GEMINI_TEXT_MODEL });
 
     // Test the API key with a simple request
     const result = await model.generateContent('Test');
