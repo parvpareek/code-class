@@ -1,0 +1,1125 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=Orbitron:wght@500;600&display=swap');
+
+/**
+ * Portfolio theme tokens — scoped under [data-pf-theme] + .portfolio-studio-scope.
+ * Identities: VOID, PAPER, EMBER, FROST, GLACIER, PAAN, FORMULA_ONE, MARLBORO (signatures).
+ * Legacy: MINIMAL..HACKER map to stable palettes (existing users).
+ */
+
+/* --- Shared primitives --- */
+.portfolio-studio-scope.pf-shell {
+  --pf-transition: 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --pf-reveal-duration: 0.52s;
+  --pf-radius: 0.75rem;
+  background: var(--pf-bg);
+  color: var(--pf-text);
+  font-family: var(--pf-font-body);
+  transition: background-color var(--pf-transition), color var(--pf-transition);
+}
+
+.portfolio-studio-scope .pf-display {
+  font-family: var(--pf-font-display);
+}
+
+.portfolio-studio-scope .pf-muted {
+  color: var(--pf-muted);
+}
+
+.portfolio-studio-scope .pf-card {
+  border-radius: var(--pf-radius);
+  background: var(--pf-surface);
+  border: 1px solid var(--pf-border);
+  box-shadow: var(--pf-shadow-card);
+  transition:
+    border-color var(--pf-transition),
+    box-shadow var(--pf-transition),
+    transform var(--pf-transition),
+    filter var(--pf-transition);
+}
+
+.portfolio-studio-scope .pf-card:hover {
+  border-color: var(--pf-border-hover);
+  box-shadow: var(--pf-shadow-card-hover);
+  transform: translateY(-1px);
+}
+
+.portfolio-studio-scope .pf-interactive {
+  transition:
+    transform var(--pf-transition),
+    box-shadow var(--pf-transition),
+    filter var(--pf-transition),
+    border-color var(--pf-transition),
+    background-color var(--pf-transition);
+}
+
+.portfolio-studio-scope .pf-interactive:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.portfolio-studio-scope .pf-link {
+  transition: color var(--pf-transition), text-decoration-color var(--pf-transition),
+    opacity var(--pf-transition);
+}
+
+.portfolio-studio-scope .pf-link:hover {
+  color: var(--pf-accent);
+  text-decoration-color: var(--pf-accent);
+}
+
+.portfolio-studio-scope .pf-proof-pill {
+  border: 1px solid var(--pf-border);
+  background: var(--pf-pill-bg);
+  color: var(--pf-text);
+}
+
+.portfolio-studio-scope .pf-proof-pill--primary {
+  border-color: var(--pf-accent);
+  background: var(--pf-pill-primary-bg);
+  color: var(--pf-text);
+}
+
+.portfolio-studio-scope .pf-border-accent-edit {
+  border-color: color-mix(in srgb, var(--pf-accent) 25%, transparent);
+}
+
+.portfolio-studio-scope .pf-chip {
+  background: var(--pf-chip-bg);
+  color: var(--pf-text);
+}
+
+/* Hero radial glow (VOID + similar) */
+.portfolio-studio-scope .pf-hero-avatar-wrap {
+  position: relative;
+}
+
+.portfolio-studio-scope .pf-hero-avatar-wrap--glow::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 50% 45%,
+    color-mix(in srgb, var(--pf-glow-hero, transparent) 35%, transparent) 0%,
+    transparent 65%
+  );
+  pointer-events: none;
+}
+
+.portfolio-studio-scope .pf-hero-avatar-wrap--glow > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Noise overlay on shell */
+.portfolio-studio-scope.pf-shell--noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--pf-noise-opacity, 0.04);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+.portfolio-studio-scope.pf-shell {
+  position: relative;
+}
+
+/* EMBER subtle warmth animation */
+@keyframes pf-ember-shift {
+  0%,
+  100% {
+    opacity: 0.03;
+  }
+  50% {
+    opacity: 0.06;
+  }
+}
+
+.portfolio-studio-scope[data-pf-theme='EMBER'].pf-shell--ember-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 80% 50% at 50% 100%, rgba(234, 88, 12, 0.08), transparent 50%);
+  animation: pf-ember-shift 12s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-studio-scope[data-pf-theme='EMBER'].pf-shell--ember-bg::before {
+    animation: none;
+  }
+}
+
+/* --- VOID --- */
+[data-pf-theme='VOID'] {
+  --pf-bg: #090909;
+  --pf-text: #ececec;
+  --pf-muted: #8b939e;
+  --pf-accent: #e8eaed;
+  --pf-border: #2a3038;
+  --pf-border-hover: #4a5568;
+  --pf-surface: #101010;
+  --pf-pill-bg: rgba(255, 255, 255, 0.06);
+  --pf-pill-primary-bg: rgba(232, 234, 237, 0.12);
+  --pf-chip-bg: rgba(255, 255, 255, 0.08);
+  --pf-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04);
+  --pf-shadow-card-hover: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(148, 163, 184, 0.15);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-sans-serif, system-ui, sans-serif;
+  --pf-glow-hero: #94a3b8;
+  --pf-noise-opacity: 0.035;
+}
+
+/* --- PAPER --- */
+[data-pf-theme='PAPER'] {
+  --pf-bg: #f5f2ea;
+  --pf-text: #141210;
+  --pf-muted: #6b6560;
+  --pf-accent: #3d3a36;
+  --pf-border: #e0d9ce;
+  --pf-border-hover: #c9bfb0;
+  --pf-surface: #fffcf7;
+  --pf-pill-bg: rgba(20, 18, 16, 0.06);
+  --pf-pill-primary-bg: rgba(20, 18, 16, 0.1);
+  --pf-chip-bg: rgba(20, 18, 16, 0.08);
+  --pf-shadow-card: 0 1px 2px rgba(20, 18, 16, 0.06);
+  --pf-shadow-card-hover: 0 8px 24px rgba(20, 18, 16, 0.1);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-serif, Georgia, 'Times New Roman', serif;
+  --pf-glow-hero: transparent;
+  --pf-noise-opacity: 0.025;
+}
+
+/* --- EMBER --- */
+[data-pf-theme='EMBER'] {
+  --pf-bg: linear-gradient(180deg, #140b0a 0%, #1e0f0d 100%);
+  --pf-text: #f5ebe5;
+  --pf-muted: #b8a099;
+  --pf-accent: #ea580c;
+  --pf-border: rgba(234, 88, 12, 0.25);
+  --pf-border-hover: rgba(251, 191, 36, 0.45);
+  --pf-surface: rgba(20, 12, 10, 0.85);
+  --pf-pill-bg: rgba(251, 191, 36, 0.1);
+  --pf-pill-primary-bg: rgba(234, 88, 12, 0.2);
+  --pf-chip-bg: rgba(234, 88, 12, 0.15);
+  --pf-shadow-card: 0 0 0 1px rgba(234, 88, 12, 0.12);
+  --pf-shadow-card-hover: 0 4px 24px rgba(234, 88, 12, 0.2), 0 0 0 1px rgba(251, 191, 36, 0.25);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-sans-serif, system-ui, sans-serif;
+  --pf-glow-hero: #ea580c;
+  --pf-noise-opacity: 0.02;
+}
+
+/* --- FROST --- */
+[data-pf-theme='FROST'] {
+  --pf-bg: #0e131a;
+  --pf-text: #e8eef5;
+  --pf-muted: #8b9aad;
+  --pf-accent: #7dd3fc;
+  --pf-border: rgba(125, 211, 252, 0.15);
+  --pf-border-hover: rgba(125, 211, 252, 0.35);
+  --pf-surface: rgba(20, 28, 38, 0.72);
+  --pf-pill-bg: rgba(125, 211, 252, 0.08);
+  --pf-pill-primary-bg: rgba(125, 211, 252, 0.18);
+  --pf-chip-bg: rgba(125, 211, 252, 0.12);
+  --pf-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04);
+  --pf-shadow-card-hover: 0 8px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(125, 211, 252, 0.2);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-sans-serif, system-ui, sans-serif;
+  --pf-glow-hero: #38bdf8;
+  --pf-noise-opacity: 0.03;
+}
+
+[data-pf-theme='FROST'] .pf-card {
+  backdrop-filter: blur(10px);
+}
+
+/* --- GLACIER --- */
+[data-pf-theme='GLACIER'] {
+  --pf-bg: linear-gradient(165deg, #0a1628 0%, #0c1e32 45%, #051018 100%);
+  --pf-text: #e0f7ff;
+  --pf-muted: #6eb8d4;
+  --pf-accent: #22d3ee;
+  --pf-border: rgba(34, 211, 238, 0.2);
+  --pf-border-hover: rgba(34, 211, 238, 0.45);
+  --pf-surface: rgba(12, 35, 55, 0.55);
+  --pf-pill-bg: rgba(34, 211, 238, 0.1);
+  --pf-pill-primary-bg: rgba(34, 211, 238, 0.2);
+  --pf-chip-bg: rgba(34, 211, 238, 0.15);
+  --pf-shadow-card: 0 0 0 1px rgba(34, 211, 238, 0.1);
+  --pf-shadow-card-hover: 0 6px 28px rgba(34, 211, 238, 0.15), 0 0 20px rgba(34, 211, 238, 0.08);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-sans-serif, system-ui, sans-serif;
+  --pf-glow-hero: #22d3ee;
+  --pf-noise-opacity: 0.025;
+}
+
+[data-pf-theme='GLACIER'] .pf-card {
+  backdrop-filter: blur(12px);
+}
+
+/* --- PAAN --- */
+[data-pf-theme='PAAN'] {
+  --pf-bg: radial-gradient(ellipse 120% 80% at 30% 20%, #0f2220 0%, #08110d 55%, #040a08 100%);
+  --pf-text: #e8f0ee;
+  --pf-muted: #9ca8a5;
+  --pf-accent: #34d399;
+  --pf-border: rgba(52, 211, 153, 0.22);
+  --pf-border-hover: rgba(212, 212, 216, 0.35);
+  --pf-surface: rgba(8, 20, 18, 0.88);
+  --pf-pill-bg: rgba(52, 211, 153, 0.1);
+  --pf-pill-primary-bg: rgba(52, 211, 153, 0.2);
+  --pf-chip-bg: rgba(52, 211, 153, 0.14);
+  --pf-shadow-card: 0 1px 0 rgba(52, 211, 153, 0.08);
+  --pf-shadow-card-hover: 0 6px 26px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(52, 211, 153, 0.25);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-serif, Georgia, serif;
+  --pf-glow-hero: #34d399;
+  --pf-noise-opacity: 0.03;
+}
+
+/* --- Legacy MINIMAL (neutral, app-adjacent) --- */
+[data-pf-theme='MINIMAL'] {
+  --pf-bg: #fafafa;
+  --pf-text: #171717;
+  --pf-muted: #737373;
+  --pf-accent: #1e3a5f;
+  --pf-border: #e5e5e5;
+  --pf-border-hover: #a3a3a3;
+  --pf-surface: #ffffff;
+  --pf-pill-bg: rgba(0, 0, 0, 0.05);
+  --pf-pill-primary-bg: rgba(30, 58, 95, 0.1);
+  --pf-chip-bg: rgba(0, 0, 0, 0.06);
+  --pf-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --pf-shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-sans-serif, system-ui, sans-serif;
+  --pf-glow-hero: transparent;
+  --pf-noise-opacity: 0;
+}
+
+/* --- Legacy MONOCHROME --- */
+[data-pf-theme='MONOCHROME'] {
+  --pf-bg: #f5f5f5;
+  --pf-text: #171717;
+  --pf-muted: #525252;
+  --pf-accent: #404040;
+  --pf-border: #d4d4d4;
+  --pf-border-hover: #737373;
+  --pf-surface: #ffffff;
+  --pf-pill-bg: rgba(0, 0, 0, 0.06);
+  --pf-pill-primary-bg: rgba(64, 64, 64, 0.12);
+  --pf-chip-bg: rgba(0, 0, 0, 0.08);
+  --pf-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --pf-shadow-card-hover: 0 10px 28px rgba(0, 0, 0, 0.1);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-sans-serif, system-ui, sans-serif;
+  --pf-glow-hero: transparent;
+  --pf-noise-opacity: 0;
+}
+
+/* --- Legacy TERMINAL --- */
+[data-pf-theme='TERMINAL'] {
+  --pf-bg: #0c0c0c;
+  --pf-text: #4ade80;
+  --pf-muted: #15803d;
+  --pf-accent: #86efac;
+  --pf-border: rgba(74, 222, 128, 0.25);
+  --pf-border-hover: rgba(74, 222, 128, 0.45);
+  --pf-surface: rgba(0, 0, 0, 0.5);
+  --pf-pill-bg: rgba(74, 222, 128, 0.08);
+  --pf-pill-primary-bg: rgba(74, 222, 128, 0.18);
+  --pf-chip-bg: rgba(74, 222, 128, 0.12);
+  --pf-shadow-card: 0 0 0 1px rgba(74, 222, 128, 0.15);
+  --pf-shadow-card-hover: 0 4px 20px rgba(74, 222, 128, 0.12);
+  --pf-font-body: ui-monospace, monospace;
+  --pf-font-display: ui-monospace, monospace;
+  --pf-glow-hero: #4ade80;
+  --pf-noise-opacity: 0.02;
+}
+
+/* --- Legacy GLASS --- */
+[data-pf-theme='GLASS'] {
+  --pf-bg: linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  --pf-text: #f1f5f9;
+  --pf-muted: #94a3b8;
+  --pf-accent: #38bdf8;
+  --pf-border: rgba(255, 255, 255, 0.1);
+  --pf-border-hover: rgba(255, 255, 255, 0.22);
+  --pf-surface: rgba(255, 255, 255, 0.06);
+  --pf-pill-bg: rgba(255, 255, 255, 0.08);
+  --pf-pill-primary-bg: rgba(56, 189, 248, 0.18);
+  --pf-chip-bg: rgba(255, 255, 255, 0.1);
+  --pf-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.25);
+  --pf-shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-sans-serif, system-ui, sans-serif;
+  --pf-glow-hero: #38bdf8;
+  --pf-noise-opacity: 0.02;
+}
+
+[data-pf-theme='GLASS'] .pf-card {
+  backdrop-filter: blur(12px);
+}
+
+/* --- Legacy HACKER --- */
+[data-pf-theme='HACKER'] {
+  --pf-bg: #080816;
+  --pf-text: #a5f3fc;
+  --pf-muted: #0891b2;
+  --pf-accent: #22d3ee;
+  --pf-border: rgba(34, 211, 238, 0.22);
+  --pf-border-hover: rgba(34, 211, 238, 0.45);
+  --pf-surface: rgba(0, 20, 30, 0.6);
+  --pf-pill-bg: rgba(34, 211, 238, 0.1);
+  --pf-pill-primary-bg: rgba(34, 211, 238, 0.2);
+  --pf-chip-bg: rgba(34, 211, 238, 0.12);
+  --pf-shadow-card: 0 0 0 1px rgba(34, 211, 238, 0.12);
+  --pf-shadow-card-hover: 0 4px 28px rgba(34, 211, 238, 0.15);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: ui-sans-serif, system-ui, sans-serif;
+  --pf-glow-hero: #22d3ee;
+  --pf-noise-opacity: 0.03;
+}
+
+/* --- Signature: FORMULA_ONE — night circuit, engineering grid, precision (not team livery) --- */
+[data-pf-theme='FORMULA_ONE'] {
+  --pf-bg: radial-gradient(120% 90% at 50% 0%, #0f1624 0%, #06080d 42%, #050608 100%);
+  --pf-text: #e8edf4;
+  --pf-muted: #6b7c90;
+  --pf-accent: #3dd4c0;
+  --pf-border: #1a2635;
+  --pf-border-hover: #2d3d52;
+  --pf-surface: #0c121c;
+  --pf-pill-bg: rgba(232, 237, 244, 0.06);
+  --pf-pill-primary-bg: color-mix(in srgb, var(--pf-accent) 14%, rgba(255, 255, 255, 0.04));
+  --pf-chip-bg: rgba(255, 255, 255, 0.05);
+  --pf-shadow-card: 0 0 0 1px color-mix(in srgb, var(--pf-border) 92%, transparent), 0 1px 0 rgba(0, 0, 0, 0.35);
+  --pf-shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px color-mix(in srgb, var(--pf-accent) 28%, var(--pf-border));
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  --pf-glow-hero: #5eead4;
+  --pf-noise-opacity: 0.028;
+  --pf-motion-snappy: 165ms;
+  --pf-ease-snappy: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-card {
+  transition:
+    transform var(--pf-motion-snappy) var(--pf-ease-snappy),
+    box-shadow var(--pf-transition),
+    border-color var(--pf-transition);
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-project-card--telemetry {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-project-card--telemetry::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: 2px;
+  border-radius: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--pf-accent) 70%, transparent),
+    transparent
+  );
+  opacity: 0.45;
+  transform: scaleY(0.35);
+  transform-origin: center top;
+  transition:
+    transform var(--pf-motion-snappy) var(--pf-ease-snappy),
+    opacity var(--pf-motion-snappy) var(--pf-ease-snappy);
+  pointer-events: none;
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-project-card--telemetry:hover::before {
+  transform: scaleY(1);
+  opacity: 0.92;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-pf-theme='FORMULA_ONE'] .pf-project-card--telemetry:hover {
+    transform: translateX(3px);
+    box-shadow:
+      -4px 0 24px color-mix(in srgb, var(--pf-accent) 08%, transparent),
+      var(--pf-shadow-card-hover);
+  }
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-hero--formula-one {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--pf-accent) 12%, var(--pf-border));
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--pf-surface) 88%, #fff) 0%,
+    color-mix(in srgb, var(--pf-surface) 96%, var(--pf-bg)) 100%
+  );
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 06%, transparent);
+  padding: 1.15rem 1.25rem;
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-hero--formula-one::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: url('/f1-logo.svg') no-repeat 104% 32%;
+  background-size: min(200px, 46vw) auto;
+  opacity: 0.3;
+  filter: brightness(1.2) saturate(0.45);
+  mix-blend-mode: soft-light;
+}
+
+@media (min-width: 768px) {
+  [data-pf-theme='FORMULA_ONE'] .pf-hero--formula-one {
+    padding: 1.25rem 1.5rem;
+  }
+
+  [data-pf-theme='FORMULA_ONE'] .pf-hero--formula-one::after {
+    background-position: 98% 28%;
+    background-size: min(220px, 38vw) auto;
+    opacity: 0.3;
+  }
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-hero-telemetry-strip {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem 1.1rem;
+  border-top: 1px solid color-mix(in srgb, var(--pf-accent) 10%, transparent);
+  padding-top: 0.85rem;
+  margin-top: 0.75rem;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pf-muted) 88%, transparent);
+}
+
+@media (min-width: 768px) {
+  [data-pf-theme='FORMULA_ONE'] .pf-hero-telemetry-strip {
+    justify-content: flex-start;
+  }
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-telemetry-numeric {
+  font-family: 'Orbitron', ui-monospace, monospace;
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-f1-hero-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-f1-hero-track {
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  bottom: -0.25rem;
+  height: 3.5rem;
+  width: auto;
+  opacity: 0.58;
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-f1-hero-pit-strip {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 0.25rem;
+  padding: 0 0 0.3rem;
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-f1-hero-pit-strip__text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.2rem 0.45rem;
+  margin: 0;
+  padding: 0 0.15rem;
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--pf-muted) 92%, var(--pf-text));
+}
+
+@media (min-width: 768px) {
+  [data-pf-theme='FORMULA_ONE'] .pf-f1-hero-pit-strip__text {
+    justify-content: flex-start;
+  }
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-f1-hero-pit-strip__line {
+  font-style: italic;
+  white-space: nowrap;
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-f1-hero-pit-strip__dot {
+  opacity: 0.45;
+  font-style: normal;
+  font-weight: 400;
+}
+
+[data-pf-theme='FORMULA_ONE'] .pf-f1-hero-pit-strip__tag {
+  width: 100%;
+  text-align: center;
+  font-family: ui-monospace, monospace;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pf-accent) 42%, var(--pf-muted));
+  opacity: 0.88;
+}
+
+@media (min-width: 768px) {
+  [data-pf-theme='FORMULA_ONE'] .pf-f1-hero-pit-strip__tag {
+    width: auto;
+    margin-left: 0.35rem;
+    padding-left: 0.55rem;
+    border-left: 1px solid color-mix(in srgb, var(--pf-accent) 22%, transparent);
+    text-align: left;
+  }
+}
+
+/* Shell: asphalt grain + circuit grid + kerb-line echo + telemetry dot mesh + vignette */
+.portfolio-studio-scope[data-pf-theme='FORMULA_ONE'].pf-shell--formula-one::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 1;
+  background-image:
+    radial-gradient(ellipse 85% 55% at 50% 118%, rgba(61, 212, 192, 0.055), transparent 52%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 23px,
+      rgba(200, 214, 232, 0.038) 23px,
+      rgba(200, 214, 232, 0.038) 24px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 47px,
+      rgba(200, 214, 232, 0.032) 47px,
+      rgba(200, 214, 232, 0.032) 48px
+    ),
+    repeating-linear-gradient(
+      -12deg,
+      transparent 0,
+      transparent 19px,
+      rgba(148, 163, 184, 0.042) 19px,
+      rgba(148, 163, 184, 0.042) 20px
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.02) 0%,
+      transparent 22%,
+      transparent 78%,
+      rgba(0, 0, 0, 0.18) 100%
+    ),
+    radial-gradient(circle at 50% 50%, rgba(148, 163, 184, 0.09) 0.45px, transparent 0.55px),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 168px,
+      rgba(61, 212, 192, 0.045) 168px,
+      rgba(61, 212, 192, 0.045) 169px
+    );
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    16px 16px,
+    auto;
+}
+
+@keyframes pf-formula-one-sweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-18%);
+  }
+  22% {
+    opacity: 0.11;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(118%);
+  }
+}
+
+.portfolio-studio-scope[data-pf-theme='FORMULA_ONE'].pf-shell--formula-one::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    102deg,
+    transparent 0%,
+    rgba(220, 232, 245, 0.055) 46%,
+    rgba(61, 212, 192, 0.04) 50%,
+    transparent 58%
+  );
+  animation: pf-formula-one-sweep 18s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-studio-scope[data-pf-theme='FORMULA_ONE'].pf-shell--formula-one::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* —— F1 signature intro: portfolio clip-reveal + dimmer + car (FormulaOneIntro) —— */
+.portfolio-studio-scope.pf-f1-night-intro-active {
+  position: relative;
+  isolation: isolate;
+  /* One shared beat: car sweep, clip reveal, dimmer — same duration / easing */
+  --pf-f1-intro-dur: 2.35s;
+  --pf-f1-intro-delay: 80ms;
+  --pf-f1-intro-ease: cubic-bezier(0.33, 0.06, 0.2, 1);
+}
+
+.portfolio-studio-scope.pf-f1-night-intro-active .pf-f1-reveal-column {
+  position: relative;
+  z-index: 1;
+  will-change: clip-path;
+  animation-name: pf-f1-portfolio-clip-in;
+  animation-duration: var(--pf-f1-intro-dur);
+  animation-timing-function: var(--pf-f1-intro-ease);
+  animation-delay: var(--pf-f1-intro-delay);
+  animation-fill-mode: both;
+}
+
+@keyframes pf-f1-portfolio-clip-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-studio-scope.pf-f1-night-intro-active .pf-f1-reveal-column {
+    animation: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* Dimmer fades in lockstep with the sweep (same duration / delay / easing as clip + car) */
+.pf-f1-intro-dimmer {
+  animation-name: pf-f1-intro-dimmer-fade;
+  animation-duration: var(--pf-f1-intro-dur);
+  animation-timing-function: var(--pf-f1-intro-ease);
+  animation-delay: var(--pf-f1-intro-delay);
+  animation-fill-mode: both;
+}
+
+@keyframes pf-f1-intro-dimmer-fade {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Fallback if overlay markup moves; mirrors .pf-f1-night-intro-active */
+.pf-f1-intro-root {
+  --pf-f1-intro-dur: 2.35s;
+  --pf-f1-intro-delay: 80ms;
+  --pf-f1-intro-ease: cubic-bezier(0.33, 0.06, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-f1-intro-dimmer {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.pf-f1-intro-tires {
+  opacity: 0;
+  animation: pf-f1-intro-tires-in 0.8s ease-out 0.08s forwards;
+}
+
+@keyframes pf-f1-intro-tires-in {
+  to {
+    opacity: 0.78;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-f1-intro-tires {
+    animation: none;
+    opacity: 0.55;
+  }
+}
+
+.pf-f1-intro-car-shell {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  top: min(36vh, 320px);
+  height: clamp(150px, 34vmin, 260px);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.pf-f1-intro-car {
+  margin-left: -5%;
+  will-change: transform, opacity;
+  animation-name: pf-f1-car-chase;
+  animation-duration: var(--pf-f1-intro-dur);
+  animation-timing-function: var(--pf-f1-intro-ease);
+  animation-delay: var(--pf-f1-intro-delay);
+  animation-fill-mode: both;
+}
+
+/* Single continuous sweep — no mid-keyframe plateau (was read as car “stopping”) */
+@keyframes pf-f1-car-chase {
+  0% {
+    transform: translate3d(-46%, 0, 0) scale(0.94);
+    opacity: 0;
+  }
+  9% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(120%, 0, 0) scale(1.02);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-f1-intro-car {
+    animation: none;
+    transform: translateX(0);
+    opacity: 0;
+  }
+}
+
+.pf-f1-intro-hud-line {
+  transform-origin: left center;
+  animation-name: pf-f1-intro-hud-line;
+  animation-duration: var(--pf-f1-intro-dur);
+  animation-timing-function: var(--pf-f1-intro-ease);
+  animation-delay: var(--pf-f1-intro-delay);
+  animation-fill-mode: both;
+}
+
+@keyframes pf-f1-intro-hud-line {
+  from {
+    transform: scaleX(0.12) skewX(-8deg);
+    opacity: 0.25;
+  }
+  to {
+    transform: scaleX(1) skewX(-8deg);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-f1-intro-hud-line {
+    animation: none;
+    transform: skewX(-8deg);
+    opacity: 1;
+  }
+}
+
+/* --- Signature: MARLBORO — editorial poster, warm paper, deep red geometry --- */
+[data-pf-theme='MARLBORO'] {
+  --pf-bg: #faf7f2;
+  --pf-text: #0c0c0c;
+  --pf-muted: #8a8580;
+  --pf-accent: #b3131d;
+  --pf-border: #e4ddd4;
+  --pf-border-hover: color-mix(in srgb, var(--pf-accent) 28%, var(--pf-border));
+  --pf-surface: #fffefa;
+  --pf-pill-bg: rgba(12, 12, 12, 0.06);
+  --pf-pill-primary-bg: color-mix(in srgb, var(--pf-accent) 12%, transparent);
+  --pf-chip-bg: rgba(12, 12, 12, 0.05);
+  --pf-shadow-card: 0 1px 0 rgba(12, 12, 12, 0.06);
+  --pf-shadow-card-hover: 0 1px 0 rgba(12, 12, 12, 0.06);
+  --pf-font-body: ui-sans-serif, system-ui, sans-serif;
+  --pf-font-display: 'Newsreader', ui-serif, Georgia, 'Times New Roman', serif;
+  --pf-glow-hero: transparent;
+  --pf-noise-opacity: 0.024;
+  --pf-motion-marlboro: 720ms;
+  --pf-ease-marlboro: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.portfolio-studio-scope[data-pf-theme='MARLBORO'] {
+  --pf-radius: 2px;
+}
+
+.portfolio-studio-scope[data-pf-theme='MARLBORO'].pf-shell--marlboro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.45;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 1px,
+      rgba(180, 170, 155, 0.028) 1px,
+      rgba(180, 170, 155, 0.028) 2px
+    ),
+    repeating-linear-gradient(
+      118deg,
+      transparent 0,
+      transparent 160px,
+      rgba(179, 19, 29, 0.014) 160px,
+      rgba(179, 19, 29, 0.014) 161px
+    );
+}
+
+[data-pf-theme='MARLBORO'] .pf-card {
+  border-radius: var(--pf-radius);
+  box-shadow: var(--pf-shadow-card);
+  transition:
+    border-color var(--pf-motion-marlboro) var(--pf-ease-marlboro),
+    box-shadow var(--pf-motion-marlboro) var(--pf-ease-marlboro),
+    transform var(--pf-motion-marlboro) var(--pf-ease-marlboro);
+}
+
+[data-pf-theme='MARLBORO'] .pf-card:hover {
+  transform: translateY(0);
+  filter: none;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--pf-accent) 42%, var(--pf-border)),
+    var(--pf-shadow-card-hover);
+}
+
+[data-pf-theme='MARLBORO'] .pf-interactive:hover {
+  transform: translateX(3px);
+  filter: none;
+}
+
+[data-pf-theme='MARLBORO'] .pf-project-card--campaign {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--pf-radius);
+  text-align: left;
+}
+
+[data-pf-theme='MARLBORO'] .pf-project-card--campaign::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: color-mix(in srgb, var(--pf-accent) 88%, var(--pf-border));
+  transform: scaleY(0.18);
+  transform-origin: center top;
+  transition: transform var(--pf-motion-marlboro) var(--pf-ease-marlboro);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-pf-theme='MARLBORO'] .pf-project-card--campaign:hover::before {
+    transform: scaleY(1);
+  }
+}
+
+[data-pf-theme='MARLBORO'] .pf-campaign-title-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+[data-pf-theme='MARLBORO'] .pf-campaign-title-wrap::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -0.12em;
+  width: 100%;
+  height: 1px;
+  background: color-mix(in srgb, var(--pf-accent) 70%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 580ms var(--pf-ease-marlboro);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-pf-theme='MARLBORO'] .pf-project-card--campaign:hover .pf-campaign-title-wrap::after {
+    transform: scaleX(1);
+  }
+
+  [data-pf-theme='MARLBORO'] .pf-project-card--campaign:hover .pf-campaign-title {
+    transform: translateX(4px);
+    letter-spacing: -0.015em;
+  }
+}
+
+[data-pf-theme='MARLBORO'] .pf-campaign-title {
+  transition:
+    transform var(--pf-motion-marlboro) var(--pf-ease-marlboro),
+    letter-spacing var(--pf-motion-marlboro) var(--pf-ease-marlboro);
+}
+
+[data-pf-theme='MARLBORO'] .pf-hero--marlboro {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--pf-radius);
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  border: 1px solid var(--pf-border);
+  border-top: 2px solid var(--pf-accent);
+  background: var(--pf-surface);
+  padding: 1.65rem 1.25rem 1.85rem;
+  text-align: left;
+  box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--pf-surface) 55%, transparent);
+}
+
+@media (min-width: 768px) {
+  [data-pf-theme='MARLBORO'] .pf-hero--marlboro {
+    padding: 2rem 1.75rem 2.15rem;
+  }
+}
+
+[data-pf-theme='MARLBORO'] .pf-hero-marlboro-watermark {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  padding-right: 5%;
+  font-family: var(--pf-font-display);
+  font-weight: 700;
+  font-size: clamp(2.25rem, 11vw, 5.5rem);
+  line-height: 0.88;
+  letter-spacing: -0.06em;
+  color: color-mix(in srgb, var(--pf-text) 5.5%, transparent);
+  user-select: none;
+}
+
+@media (min-width: 768px) {
+  [data-pf-theme='MARLBORO'] .pf-hero-marlboro-watermark {
+    padding-right: 7%;
+  }
+}
+
+[data-pf-theme='MARLBORO'] .pf-hero-marlboro-watermark span {
+  display: block;
+}
+
+[data-pf-theme='MARLBORO'] .pf-hero--marlboro > .pf-hero-marlboro-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+[data-pf-theme='MARLBORO'] .pf-hero--marlboro h1.pf-display {
+  font-size: clamp(2rem, 5.5vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+}
+
+[data-pf-theme='MARLBORO'] .pf-marlboro-featured-heading {
+  border-left: 2px solid color-mix(in srgb, var(--pf-accent) 55%, var(--pf-border));
+  padding-left: 0.55rem;
+  letter-spacing: 0.18em;
+}
+
+[data-pf-theme='MARLBORO'] .pf-marlboro-skills-heading {
+  border-left: 2px solid color-mix(in srgb, var(--pf-accent) 48%, var(--pf-border));
+  padding-left: 0.55rem;
+  letter-spacing: 0.22em;
+  font-family: var(--pf-font-display);
+  font-weight: 600;
+  font-size: 0.7rem;
+  opacity: 0.88;
+}
+
+[data-pf-theme='MARLBORO'] .pf-link:hover {
+  filter: none;
+}
+
+/* Cigarette-pack–inspired shell (abstract): red lid band + gold rule + white body */
+[data-pf-theme='MARLBORO'] .pf-marlboro-pack {
+  overflow: hidden;
+  border-radius: var(--pf-radius);
+  border: 1px solid color-mix(in srgb, var(--pf-accent) 18%, var(--pf-border));
+  background: var(--pf-surface);
+  box-shadow:
+    0 1px 0 rgba(12, 12, 12, 0.05),
+    inset 0 0 0 1px color-mix(in srgb, var(--pf-surface) 88%, transparent);
+}
+
+[data-pf-theme='MARLBORO'] .pf-marlboro-pack__lid {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--pf-accent) 92%, #fff) 0%,
+    var(--pf-accent) 48%,
+    color-mix(in srgb, var(--pf-accent) 88%, #000) 100%
+  );
+  color: #fdf8f4;
+  padding: 0.5rem 1rem;
+  font-family: var(--pf-font-body);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  border-bottom: 1px solid color-mix(in srgb, var(--pf-accent) 50%, #000);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--pf-accent) 40%, transparent);
+}
+
+[data-pf-theme='MARLBORO'] .pf-marlboro-pack__body {
+  padding: 0.65rem 0.85rem 0.9rem;
+  border-top: 2px solid color-mix(in srgb, #b8963e 65%, var(--pf-border));
+  background: linear-gradient(
+    180deg,
+    var(--pf-surface) 0%,
+    color-mix(in srgb, var(--pf-bg) 35%, var(--pf-surface)) 100%
+  );
+}
+
+[data-pf-theme='MARLBORO'] .pf-marlboro-pack__body .pf-marlboro-accordion-item {
+  border-bottom-color: color-mix(in srgb, var(--pf-muted) 18%, var(--pf-border)) !important;
+}
+
+[data-pf-theme='MARLBORO'] .pf-marlboro-pack__body .pf-marlboro-accordion-item:last-child {
+  border-bottom-width: 0 !important;
+}

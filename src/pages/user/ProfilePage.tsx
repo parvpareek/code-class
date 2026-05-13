@@ -21,6 +21,9 @@ import { useState } from 'react';
 import { Textarea } from '../../components/ui/textarea';
 import { linkLeetCodeCredentials, linkGfgCredentials } from '../../api/auth';
 import LeetCodeStats from '../../components/ui/LeetCodeStats';
+import { PortfolioActivityHeatmaps } from '../../components/portfolio/PortfolioActivityHeatmaps';
+import { PortfolioHeatmapModeToggle } from '../../components/portfolio/PortfolioHeatmapModeToggle';
+import type { PortfolioHeatmapMode } from '../../types/portfolio';
 
 import GeminiKeySection from '../../components/profile/GeminiKeySection';
 import HackerRankKeySection from '../../components/profile/HackerRankKeySection';
@@ -46,6 +49,7 @@ type GfgFormValues = z.infer<typeof gfgFormSchema>;
 const ProfilePage: React.FC = () => {
   const { user, updateProfile, isLoading, error, refreshUser } = useAuth();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [profileHeatmapMode, setProfileHeatmapMode] = useState<PortfolioHeatmapMode>('combined');
   const [leetCodeError, setLeetCodeError] = useState<string | null>(null);
   const [leetCodeSuccess, setLeetCodeSuccess] = useState<string | null>(null);
   const [isLinkingLeetCode, setIsLinkingLeetCode] = useState(false);
@@ -211,6 +215,41 @@ const ProfilePage: React.FC = () => {
           {/* LeetCode Stats - Students only */}
           {user && user.role === 'STUDENT' && <LeetCodeStats user={user} showDetails={true} />}
         </div>
+
+        {user?.role === 'STUDENT' && user.activity ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5" />
+                Coding activity
+              </CardTitle>
+              <CardDescription>
+                DSA problems solved (Code Class), GitHub commits, or both combined.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div
+                data-pf-theme="MINIMAL"
+                className="portfolio-studio-scope pf-shell rounded-lg border border-border p-4"
+              >
+                <PortfolioActivityHeatmaps
+                  activity={{
+                    githubByDate: user.activity.githubByDate ?? {},
+                    dsaByDate: user.activity.dsaByDate ?? {},
+                    practiceByDate: user.activity.practiceByDate ?? {},
+                  }}
+                  mode={profileHeatmapMode}
+                />
+                <div className="mt-3 flex flex-col gap-2 border-t border-[var(--pf-border)]/40 pt-3 sm:flex-row sm:items-end sm:justify-between">
+                  <PortfolioHeatmapModeToggle mode={profileHeatmapMode} onMode={setProfileHeatmapMode} />
+                  <p className="text-[10px] leading-snug text-[var(--pf-muted)] opacity-75 sm:max-w-[14rem] sm:text-right">
+                    DSA problems = LeetCode, HackerRank, GeeksforGeeks via Code Class. GitHub = public commits.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Enhanced LeetCode Integration Card - Students only */}
         {user?.role === 'STUDENT' && (
