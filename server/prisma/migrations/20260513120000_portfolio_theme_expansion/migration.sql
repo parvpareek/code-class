@@ -1,0 +1,6 @@
+ALTER TYPE "PortfolioTheme" ADD VALUE 'VOID';
+ALTER TYPE "PortfolioTheme" ADD VALUE 'PAPER';
+ALTER TYPE "PortfolioTheme" ADD VALUE 'EMBER';
+ALTER TYPE "PortfolioTheme" ADD VALUE 'FROST';
+ALTER TYPE "PortfolioTheme" ADD VALUE 'GLACIER';
+ALTER TYPE "PortfolioTheme" ADD VALUE 'PAAN';

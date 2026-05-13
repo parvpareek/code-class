@@ -1,0 +1,3 @@
+ALTER TYPE "PortfolioTheme" ADD VALUE IF NOT EXISTS 'FORMULA_ONE';
+
+UPDATE "PortfolioProfile" SET theme = 'FORMULA_ONE' WHERE theme::text IN ('PIT_WALL', 'NIGHT_CIRCUIT');
