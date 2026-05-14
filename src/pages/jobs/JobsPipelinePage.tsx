@@ -1021,6 +1021,9 @@ export default function JobsPipelinePage() {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: '/jobs' }} />;
   }
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   const activeApp = activeId ? displayed.get(String(activeId)) : undefined;
   const totalCount = applications.length;
@@ -1085,11 +1088,7 @@ export default function JobsPipelinePage() {
       </header>
 
       <main className="relative flex-1 pb-24 sm:pb-8">
-        {isLoading ? (
-          <div className="flex justify-center py-24">
-            <LoadingScreen />
-          </div>
-        ) : totalCount === 0 ? (
+        {totalCount === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
           <DndContext
