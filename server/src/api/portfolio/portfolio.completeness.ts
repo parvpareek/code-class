@@ -58,11 +58,12 @@ export function computeCompleteness(user: User, content: PortfolioContent): Comp
       );
     });
     const withStory =
-      projects.some((p) => (p.longDescription ?? '').trim().length >= 80) || hasStructuredStory;
+      hasStructuredStory ||
+      projects.some((p) => (p.whyBuilt ?? '').trim().length >= 40);
     if (withStory) {
       score += W.projectStory;
     } else {
-      suggestions.push('Add a project story (motivation, architecture, challenges, or long description)');
+      suggestions.push('Add a project story (why it exists, motivation, architecture, or other story sections)');
     }
     const withScreenshot = projects.some((p) => (p.imageUrl ?? '').trim().length > 0);
     if (!withScreenshot) {

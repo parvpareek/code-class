@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -607,9 +608,6 @@ const PortfolioStudioPage: React.FC = () => {
             const raw = await withTimeout(getGithubReadme(m[1], m[2]), README_FETCH_MS);
             const trimmed = raw.trim();
             let updated = { ...proj };
-            if (!(proj.longDescription ?? '').trim() && trimmed.length > 40) {
-              updated.longDescription = trimmed.slice(0, 2500);
-            }
             if ((proj.shortDescription?.length ?? 0) < 36) {
               const line = trimmed
                 .split('\n')
@@ -1277,9 +1275,13 @@ const PortfolioStudioPage: React.FC = () => {
           {sheet === 'hero' && (
             <div className="mt-4 space-y-3">
               <div>
-                <Label className="text-xs">Role / title</Label>
+                <Label className="text-xs">Primary headline</Label>
+                <p className="mb-1 text-[10px] leading-snug text-muted-foreground">
+                  Role @ org or Student @ school — shown first on your profile.
+                </p>
                 <div className="flex gap-2">
                   <Input
+                    placeholder="e.g. AI Engineer Intern @ OneClarity AI"
                     value={draftContent.hero.roleTitle ?? ''}
                     onChange={(e) =>
                       setDraftContent({
@@ -1328,52 +1330,20 @@ const PortfolioStudioPage: React.FC = () => {
                 </div>
               </div>
               <div>
-                <Label className="text-xs">Tagline</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={draftContent.hero.tagline ?? ''}
-                    onChange={(e) =>
-                      setDraftContent({
-                        ...draftContent,
-                        hero: { ...draftContent.hero, tagline: e.target.value },
-                      })
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={!!suggestLoading}
-                    onClick={async () => {
-                      setSuggestLoading('tagline');
-                      try {
-                        const key = getStudioGeminiKey();
-                        const r = await suggestPortfolioField({
-                          field: 'tagline',
-                          text: draftContent.hero.tagline ?? '',
-                          geminiApiKey: key ?? undefined,
-                          portfolioContext: buildPortfolioSuggestContext(draftContent),
-                        });
-                        if (r.suggestions[0]) {
-                          setDraftContent({
-                            ...draftContent,
-                            hero: { ...draftContent.hero, tagline: r.suggestions[0] },
-                          });
-                        } else {
-                          toast({ title: 'No suggestions' });
-                        }
-                      } finally {
-                        setSuggestLoading(null);
-                      }
-                    }}
-                  >
-                    {suggestLoading === 'tagline' ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                <Label className="text-xs">Optional tail (same line)</Label>
+                <p className="mb-1 text-[10px] leading-snug text-muted-foreground">
+                  Joined after your headline with · — e.g. Remote, Open source, Graduating 2026.
+                </p>
+                <Input
+                  placeholder="e.g. Remote · Open to relocate"
+                  value={draftContent.hero.statusLine ?? ''}
+                  onChange={(e) =>
+                    setDraftContent({
+                      ...draftContent,
+                      hero: { ...draftContent.hero, statusLine: e.target.value },
+                    })
+                  }
+                />
               </div>
               <div>
                 <Label className="text-xs">Bio</Label>
@@ -1430,46 +1400,6 @@ const PortfolioStudioPage: React.FC = () => {
                   )}
                   Suggest
                 </Button>
-              </div>
-              <div>
-                <Label className="text-xs">Current focus</Label>
-                <Textarea
-                  className="min-h-[52px] text-sm"
-                  placeholder="e.g. Distributed systems and compiler internals"
-                  value={draftContent.hero.currentFocus ?? ''}
-                  onChange={(e) =>
-                    setDraftContent({
-                      ...draftContent,
-                      hero: { ...draftContent.hero, currentFocus: e.target.value },
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Status line</Label>
-                <Input
-                  placeholder="Tiny pulse under your role"
-                  value={draftContent.hero.statusLine ?? ''}
-                  onChange={(e) =>
-                    setDraftContent({
-                      ...draftContent,
-                      hero: { ...draftContent.hero, statusLine: e.target.value },
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Strongest skill signal</Label>
-                <Input
-                  placeholder="e.g. Backend systems, TypeScript"
-                  value={draftContent.hero.strongestSkill ?? ''}
-                  onChange={(e) =>
-                    setDraftContent({
-                      ...draftContent,
-                      hero: { ...draftContent.hero, strongestSkill: e.target.value },
-                    })
-                  }
-                />
               </div>
               <div>
                 <Label className="text-xs">Location</Label>
@@ -1990,8 +1920,10 @@ const PortfolioStudioPage: React.FC = () => {
                       setDraftContent({ ...draftContent, projects });
                     }}
                   />
-                  <Label className="text-[10px]">Hook</Label>
+                  <Label className="text-[10px]">Hook (card)</Label>
                   <Textarea
+                    className="min-h-[44px]"
+                    placeholder="e.g. Live DSA dashboards for 200+ students"
                     value={p.shortDescription}
                     onChange={(e) => {
                       const projects = [...draftContent.projects];
@@ -1999,26 +1931,9 @@ const PortfolioStudioPage: React.FC = () => {
                       setDraftContent({ ...draftContent, projects });
                     }}
                   />
-                  <Label className="text-[10px]">Why it exists</Label>
-                  <Textarea
-                    className="min-h-[48px]"
-                    value={p.whyBuilt ?? ''}
-                    onChange={(e) => {
-                      const projects = [...draftContent.projects];
-                      projects[pi] = { ...p, whyBuilt: e.target.value };
-                      setDraftContent({ ...draftContent, projects });
-                    }}
-                  />
-                  <Label className="text-[10px]">Legacy long story</Label>
-                  <Textarea
-                    placeholder="Long story"
-                    value={p.longDescription ?? ''}
-                    onChange={(e) => {
-                      const projects = [...draftContent.projects];
-                      projects[pi] = { ...p, longDescription: e.target.value };
-                      setDraftContent({ ...draftContent, projects });
-                    }}
-                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Why it exists, long story, and tags — edit in <span className="font-medium">Full editor</span>.
+                  </p>
                   <div className="flex items-center gap-2">
                     <Checkbox
                       checked={p.featured !== false}
@@ -2071,7 +1986,7 @@ const PortfolioStudioPage: React.FC = () => {
                         try {
                           const key = getStudioGeminiKey();
                           const stack = (p.techStack ?? []).join(', ');
-                          const notes = [p.longDescription, p.shortDescription, p.whyBuilt]
+                          const notes = [p.shortDescription, p.whyBuilt]
                             .filter(Boolean)
                             .join('\n');
                           const r = await suggestPortfolioField({
@@ -2135,35 +2050,35 @@ const PortfolioStudioPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Hook (short)</Label>
+                    <Label className="text-xs">Hook (card only)</Label>
+                    <p className="mb-1 text-[10px] leading-snug text-muted-foreground">
+                      One or two sentences on the tile. No long narrative here.
+                    </p>
                     <Textarea
                       className="min-h-[56px]"
+                      placeholder="e.g. Grading pipeline + teacher dashboards — shipped in one semester"
                       value={p.shortDescription}
                       onChange={(e) => patchProject({ ...p, shortDescription: e.target.value })}
                     />
                   </div>
+                  <Separator />
+                  <p className="text-[10px] leading-snug text-muted-foreground">
+                    Below: details shown after someone opens <span className="font-medium">View story</span>.
+                  </p>
                   <div>
                     <Label className="text-xs">Why it exists</Label>
                     <Textarea
                       className="min-h-[56px]"
-                      placeholder="Problem / intent — not generic marketing"
+                      placeholder="e.g. Teachers were re-typing scores from five spreadsheets every week"
                       value={p.whyBuilt ?? ''}
                       onChange={(e) => patchProject({ ...p, whyBuilt: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Legacy long story (optional)</Label>
-                    <Textarea
-                      placeholder="Single block; prefer structured sections below"
-                      className="min-h-[80px] font-mono text-xs"
-                      value={p.longDescription ?? ''}
-                      onChange={(e) => patchProject({ ...p, longDescription: e.target.value })}
                     />
                   </div>
                   <div>
                     <Label className="text-xs">Engineering highlights (one per line)</Label>
                     <Textarea
                       className="min-h-[72px] font-mono text-xs"
+                      placeholder={'e.g. Cut p95 ingest latency from 12s → 1.4s\nAdded row-level security for multi-tenant classes'}
                       value={(p.engineeringHighlights ?? []).join('\n')}
                       onChange={(e) => {
                         const raw = e.target.value;
@@ -2176,9 +2091,12 @@ const PortfolioStudioPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Signal cues (comma)</Label>
+                    <Label className="text-xs">Topic tags (comma)</Label>
+                    <p className="mb-1 text-[10px] leading-snug text-muted-foreground">
+                      Short labels for the story header — stack areas, domain, or stage.
+                    </p>
                     <Input
-                      placeholder="Open source, Production, In progress"
+                      placeholder="e.g. TypeScript, Postgres, Education, In production"
                       value={projectSignalText[i] ?? joinCommaList(p.signalCues ?? [])}
                       onChange={(e) => {
                         const text = e.target.value;
@@ -2204,46 +2122,36 @@ const PortfolioStudioPage: React.FC = () => {
                       }}
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs">Extra metrics (optional, one per line: Label: value)</Label>
-                    <Textarea
-                      className="min-h-[72px] font-mono text-xs"
-                      placeholder={'LOC: 4k\nContributors: 2'}
-                      value={projectMetricsText[i] ?? metricsTextFromRecord(p.metrics)}
-                      onChange={(e) =>
-                        setProjectMetricsText((d) => ({
-                          ...d,
-                          [i]: e.target.value,
-                        }))
-                      }
-                      onBlur={() => {
-                        const raw = projectMetricsText[i] ?? metricsTextFromRecord(p.metrics);
-                        const metrics = metricsRecordFromText(raw);
-                        setProjectMetricsText((d) => {
-                          const n = { ...d };
-                          delete n[i];
-                          return n;
-                        });
-                        patchProject({
-                          ...p,
-                          metrics: Object.keys(metrics).length ? metrics : undefined,
-                        });
-                      }}
-                    />
-                  </div>
                   {(
                     [
-                      ['motivation', 'Motivation'],
-                      ['architecture', 'Architecture'],
-                      ['challenges', 'Challenges'],
-                      ['lessons', 'Lessons'],
-                      ['futurePlans', "What's next"],
+                      [
+                        'motivation',
+                        'Motivation',
+                        'e.g. Teachers were losing half a day every Friday reconciling rubric CSVs',
+                      ],
+                      [
+                        'architecture',
+                        'Architecture',
+                        'e.g. Next.js app → background worker → Postgres + object storage for artifacts',
+                      ],
+                      [
+                        'challenges',
+                        'Challenges',
+                        'e.g. Exam-day spikes without dropping events or double-counting submissions',
+                      ],
+                      ['lessons', 'Lessons', 'e.g. Pilot with one class before multi-tenant permissions'],
+                      [
+                        'futurePlans',
+                        "What's next",
+                        'e.g. School SSO, async PDF export, sharper similarity checks',
+                      ],
                     ] as const
-                  ).map(([key, label]) => (
+                  ).map(([key, label, ph]) => (
                     <div key={key}>
                       <Label className="text-xs">{label}</Label>
                       <Textarea
                         className="min-h-[64px] text-xs"
+                        placeholder={ph}
                         value={(p.story?.[key] as string | undefined) ?? ''}
                         onChange={(e) => {
                           patchProject({
@@ -2333,8 +2241,39 @@ const PortfolioStudioPage: React.FC = () => {
                     ))}
                   </div>
                   <div>
+                    <Label className="text-xs">Quick facts (story dialog, optional)</Label>
+                    <p className="mb-1 text-[10px] leading-snug text-muted-foreground">
+                      One metric per line as <span className="font-mono">Label: value</span>.
+                    </p>
+                    <Textarea
+                      className="min-h-[72px] font-mono text-xs"
+                      placeholder={'e.g. Weekly active teachers: 42\np95 dashboard load: 1.2s'}
+                      value={projectMetricsText[i] ?? metricsTextFromRecord(p.metrics)}
+                      onChange={(e) =>
+                        setProjectMetricsText((d) => ({
+                          ...d,
+                          [i]: e.target.value,
+                        }))
+                      }
+                      onBlur={() => {
+                        const raw = projectMetricsText[i] ?? metricsTextFromRecord(p.metrics);
+                        const metrics = metricsRecordFromText(raw);
+                        setProjectMetricsText((d) => {
+                          const n = { ...d };
+                          delete n[i];
+                          return n;
+                        });
+                        patchProject({
+                          ...p,
+                          metrics: Object.keys(metrics).length ? metrics : undefined,
+                        });
+                      }}
+                    />
+                  </div>
+                  <div>
                     <Label className="text-xs">Tech (comma)</Label>
                     <Input
+                      placeholder="e.g. TypeScript, React, Prisma, Railway"
                       value={projectTechText[i] ?? joinCommaList(p.techStack ?? [])}
                       onChange={(e) => {
                         const text = e.target.value;

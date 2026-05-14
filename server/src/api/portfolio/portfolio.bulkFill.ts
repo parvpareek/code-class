@@ -101,10 +101,8 @@ Return ONE JSON object only (no markdown) with exactly these keys:
 {
   "hero": {
     "roleTitle": string,
-    "tagline": string,
     "bio": string,
     "location": string,
-    "currentFocus": string,
     "statusLine": string,
     "strongestSkill": string,
     "availabilityText": string,
@@ -130,10 +128,8 @@ Constraints (STRICT — the UI is dense; long text breaks layout):
   (1) If degree-seeking student and university is known: "Student @ {University}".
   (2) Else if job or internship and organization is known: "{ConciseRole} @ {Org}" — e.g. "AI Engineer Intern @ OneClarity AI".
   NEVER write "Currently interning at…", "Interning at…", "Working at…", or other sentence-style employment lines — always "Role @ Org" or "Student @ School".
-- hero.tagline: max 90 characters, ONE clause — what you build or explore (problem/tech space). Do NOT repeat the organization or school name from roleTitle.
-- hero.currentFocus: prefer empty string "". ONLY if 2-4 words add information NOT already in tagline (e.g. a narrow stack). If tagline already names the focus area, use "".
 - hero.statusLine: always use empty string "" (do not fill — roleTitle carries employment/education headline).
-- hero.strongestSkill: prefer "". ONLY if 2-4 words name ONE concrete strength not already implied by tagline (e.g. a tool: "PyTorch + CUDA"). If tagline already covers that strength, use "".
+- hero.strongestSkill: prefer "". ONLY if 2-4 words name ONE concrete strength not already implied by bio or roleTitle (e.g. a tool: "PyTorch + CUDA"). If bio already covers that strength, use "".
 - hero.bio: HARD max 220 characters. At most 2 short sentences. Traits + what you enjoy (e.g. curious, ships side projects, likes ML systems). Zero bullet-style lists. Do not restate every internship or award.
 - If openToWork is true: hero.availabilityText MUST be exactly the string "Open to opportunities" (nothing longer). If false: availabilityText "" or max 24 characters.
 - skills: 2–5 categories; each items 4–10 short tokens (languages, frameworks, tools).
@@ -162,13 +158,12 @@ ${skeletonJson}
 
 Return ONE JSON object: { "projects": [ ... ] }
 The "projects" array MUST have the SAME LENGTH and SAME ORDER as the input list. Each entry matches one input project by index.
-
+Keep everything compact, precise and sharp. 
 For EACH project object include ONLY these keys (omit story / motivation / architecture / challenges / lessons / futurePlans entirely):
 {
   "title": string (must exactly match input title at same index),
   "shortDescription": string (max 100 chars — one line hook),
   "whyBuilt": string (max 110 chars — ONE short sentence: problem or intent only),
-  "longDescription": string (max 280 chars — max 2 short sentences: what it does + who it helps; no repetition of whyBuilt),
   "techStack": string[] (max 8 items, each max 32 chars),
   "engineeringHighlights": string[] (1–2 bullets only, each max 88 chars),
   "signalCues": string[] (EXACTLY 1 to 3 items, each max 24 chars, 2–4 words; no duplicate ideas),
@@ -177,7 +172,7 @@ For EACH project object include ONLY these keys (omit story / motivation / archi
 
 Rules:
 - Stay truthful to resume + structured context; use [TBD] only when a metric is unknown.
-- No markdown inside strings. No duplicate sentences across shortDescription / whyBuilt / longDescription.
+- No markdown inside strings. No duplicate sentences across shortDescription / whyBuilt.
 - techStack should extend (not ignore) the provided techStack hints when present.
 - Prefer fewer, sharper strings over completeness — cards must stay visually short.`;
 

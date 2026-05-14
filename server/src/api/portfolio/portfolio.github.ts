@@ -129,11 +129,7 @@ export function githubPreviewToPortfolioDraft(
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([k]) => k);
-  const tagline =
-    topLangs.length > 0
-      ? `Building with ${topLangs.join(', ')}`
-      : 'Open source & software';
-
+  const langSuffix = topLangs.length > 0 ? ` (${topLangs.join(', ')})` : '';
   const picks = gh.topRepos.slice(0, 4);
   const projects: PortfolioContent['projects'] = picks.map((r) => ({
     id: `gh-${r.name}`,
@@ -148,10 +144,9 @@ export function githubPreviewToPortfolioDraft(
   return {
     hero: {
       roleTitle: '',
-      tagline,
       bio: gh.name
-        ? `${gh.name} — projects on GitHub.`
-        : `${displayName} — projects on GitHub.`,
+        ? `${gh.name} — projects on GitHub${langSuffix}.`
+        : `${displayName} — projects on GitHub${langSuffix}.`,
       avatarUrl:
         (gh.avatarUrl ?? '').trim().length > 0
           ? upsampleGithubAvatarUrl(gh.avatarUrl)

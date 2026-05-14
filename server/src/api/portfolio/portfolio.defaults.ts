@@ -10,7 +10,6 @@ export function defaultPortfolioContent(): PortfolioContent {
     featuredSignal: 'PROJECTS',
     hero: {
       roleTitle: '',
-      tagline: '',
       bio: '',
       location: '',
       avatarUrl: null,

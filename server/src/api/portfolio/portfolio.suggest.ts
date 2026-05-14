@@ -14,7 +14,7 @@ function clipContext(ctx: string): string {
 }
 
 export async function suggestHeroCopy(params: {
-  field: 'tagline' | 'bio' | 'roleTitle';
+  field: 'bio' | 'roleTitle';
   text: string;
   tone?: string;
   portfolioContext?: string;
@@ -44,9 +44,7 @@ Constraints:
 ${
   params.field === 'bio'
     ? `- bio: max 220 characters each, at most 2 short sentences. Voice: curious problem-solver / student-friendly. No GPA, ranks, or employer laundry lists.`
-    : params.field === 'tagline'
-      ? `- tagline: max 90 characters each, one clause.`
-      : `- roleTitle: each line MUST be "Role @ Organization" or "Student @ University" (max 72 chars). Never "Currently interning at…" — use "Intern @ Company" instead.`
+    : `- roleTitle: each line MUST be "Role @ Organization" or "Student @ University" (max 72 chars). Never "Currently interning at…" — use "Intern @ Company" instead.`
 }
 No markdown fences, no numbering — JSON array only.`;
 

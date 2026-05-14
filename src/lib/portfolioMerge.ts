@@ -7,15 +7,9 @@ import type {
 } from '@/types/portfolio';
 import { githubProfilePngUrl, upsampleGithubAvatarUrl } from '@/lib/githubAvatar';
 
-/** Card / dialog: one factual line — first paragraph of longDescription when substantive, else shortDescription. */
-export function projectBuiltSummaryLine(p: Pick<PortfolioProject, 'shortDescription' | 'longDescription'>): string {
-  const ld = (p.longDescription ?? '').trim();
-  const sd = (p.shortDescription ?? '').trim();
-  if (ld.length >= 28) {
-    const first = ld.split(/\n+/).map((x) => x.trim()).find(Boolean) ?? ld;
-    return first.slice(0, 280);
-  }
-  return sd;
+/** Featured project card: one-line hook only (full story opens in the dialog). */
+export function projectCardHookLine(p: Pick<PortfolioProject, 'shortDescription'>): string {
+  return (p.shortDescription ?? '').trim();
 }
 
 /** Empty portfolio JSON for re-running the studio wizard (matches server `defaultPortfolioContent`). */
@@ -25,7 +19,6 @@ export function freshOnboardingPortfolioContent(): PortfolioContent {
     featuredSignal: 'PROJECTS',
     hero: {
       roleTitle: '',
-      tagline: '',
       bio: '',
       location: '',
       avatarUrl: null,
@@ -136,8 +129,7 @@ export function githubPreviewToClientDraft(
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([k]) => k);
-  const tagline =
-    topLangs.length > 0 ? `Building with ${topLangs.join(', ')}` : 'Open source & software';
+  const langSuffix = topLangs.length > 0 ? ` (${topLangs.join(', ')})` : '';
   const projects: PortfolioContent['projects'] = picks.map((r) => ({
     id: `gh-${r.name}`,
     title: r.name.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -150,8 +142,7 @@ export function githubPreviewToClientDraft(
   return {
     hero: {
       roleTitle: '',
-      tagline,
-      bio: gh.name ? `${gh.name} — projects on GitHub.` : `${displayName} — projects on GitHub.`,
+      bio: gh.name ? `${gh.name} — projects on GitHub${langSuffix}.` : `${displayName} — projects on GitHub${langSuffix}.`,
       avatarUrl:
         (gh.avatarUrl ?? '').trim().length > 0
           ? upsampleGithubAvatarUrl(gh.avatarUrl)
@@ -255,27 +246,20 @@ function normalizeRoleTitleAtFormat(roleTitle: string): string {
   return aiStr(t, 72);
 }
 
-/** After bulk AI merge: one headline role line, tagline carries pitch; drop redundant micro-lines. */
+/** After bulk AI merge: normalize role headline; drop redundant micro-lines. */
 function coalesceBulkHeroFields(hero: PortfolioHero): PortfolioHero {
   const h = { ...hero };
   h.roleTitle = normalizeRoleTitleAtFormat((h.roleTitle ?? '').trim()) || h.roleTitle;
   const role = (h.roleTitle ?? '').trim();
-  const tag = (h.tagline ?? '').trim();
-  let focus = (h.currentFocus ?? '').trim();
+  const bio = (h.bio ?? '').trim();
   let strong = (h.strongestSkill ?? '').trim();
 
   h.statusLine = '';
 
-  if (focus && tag && tokenOverlapRatio(focus, tag) >= 0.28) focus = '';
-  if (focus && role && tokenOverlapRatio(focus, role) >= 0.38) focus = '';
-  if (tag.length >= 40 && focus && tokenOverlapRatio(focus, tag) >= 0.18) focus = '';
-  h.currentFocus = focus ? aiStr(focus, 40) : '';
-
-  const tagFocus = `${tag} ${h.currentFocus ?? ''}`;
-  if (strong && tag && tokenOverlapRatio(strong, tagFocus) >= 0.42) strong = '';
+  if (strong && bio && tokenOverlapRatio(strong, bio) >= 0.42) strong = '';
   if (strong && role && tokenOverlapRatio(strong, role) >= 0.35) strong = '';
-  if (strong && /llm|agent|ml|ai|deep|graph|neo4j/i.test(tag) && /llm|agent|ml|ai|deep|graph|neo4j/i.test(strong)) {
-    if (tokenOverlapRatio(strong, tag) >= 0.22) strong = '';
+  if (strong && /llm|agent|ml|ai|deep|graph|neo4j/i.test(bio) && /llm|agent|ml|ai|deep|graph|neo4j/i.test(strong)) {
+    if (tokenOverlapRatio(strong, bio) >= 0.22) strong = '';
   }
   h.strongestSkill = strong ? aiStr(strong, 48) : '';
 
@@ -374,12 +358,10 @@ function mergeProjectWithAiPatch(base: PortfolioProject, patch: unknown): Portfo
   }
   const shortDescription = aiStr(o.shortDescription, 100) || base.shortDescription;
   const whyBuilt = o.whyBuilt !== undefined ? aiStr(o.whyBuilt, 110) || undefined : base.whyBuilt;
-  const longDescription = o.longDescription !== undefined ? aiStr(o.longDescription, 280) || undefined : base.longDescription;
   return {
     ...base,
     shortDescription: shortDescription.length ? shortDescription : base.shortDescription,
     whyBuilt,
-    longDescription,
     techStack: techStack?.length ? techStack : base.techStack,
     engineeringHighlights: engineeringHighlights?.length ? engineeringHighlights : base.engineeringHighlights,
     signalCues: signalCues?.length ? signalCues : base.signalCues,
@@ -398,10 +380,8 @@ export function mergeBulkAiPortfolioFill(base: PortfolioContent, fill: Portfolio
     next.hero = coalesceBulkHeroFields({
       ...next.hero,
       roleTitle: h.roleTitle !== undefined ? aiStr(h.roleTitle, 72) || next.hero.roleTitle : next.hero.roleTitle,
-      tagline: h.tagline !== undefined ? aiStr(h.tagline, 90) : next.hero.tagline,
       bio: h.bio !== undefined ? aiStr(h.bio, 220) : next.hero.bio,
       location: h.location !== undefined ? aiStr(h.location, 120) : next.hero.location,
-      currentFocus: h.currentFocus !== undefined ? aiStr(h.currentFocus, 40) : next.hero.currentFocus,
       statusLine: '',
       strongestSkill: h.strongestSkill !== undefined ? aiStr(h.strongestSkill, 48) : next.hero.strongestSkill,
       availabilityText: openToWork

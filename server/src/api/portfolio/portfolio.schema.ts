@@ -37,14 +37,11 @@ export const HeroLinksSchema = z
 
 export const HeroSchema = z.object({
   roleTitle: z.string().max(120).optional(),
-  tagline: z.string().max(200).optional(),
   bio: z.string().max(1200).optional(),
   location: z.string().max(120).optional(),
   avatarUrl: z.union([z.string().max(2048), z.literal('')]).nullable().optional(),
   openToWork: z.boolean().optional(),
   availabilityText: z.string().max(80).optional(),
-  /** One line: what you're exploring or building toward */
-  currentFocus: z.string().max(200).optional(),
   /** Tiny pulse line under the hero (e.g. availability nuance) */
   statusLine: z.string().max(120).optional(),
   strongestSkill: z.string().max(80).optional(),

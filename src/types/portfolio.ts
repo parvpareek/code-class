@@ -40,13 +40,11 @@ export interface PortfolioHeroLinks {
 
 export interface PortfolioHero {
   roleTitle?: string;
-  tagline?: string;
   bio?: string;
   location?: string;
   avatarUrl?: string | null;
   openToWork?: boolean;
   availabilityText?: string;
-  currentFocus?: string;
   statusLine?: string;
   strongestSkill?: string;
   links?: PortfolioHeroLinks;

@@ -44,7 +44,6 @@ export function buildPortfolioSuggestContext(content: PortfolioContent, resumeEx
     if (linkBits.length) parts.push(`Links:\n${linkBits.join('\n')}`);
   }
 
-  if ((content.hero.tagline ?? '').trim()) parts.push(`Current tagline: ${content.hero.tagline}`);
   if ((content.hero.location ?? '').trim()) parts.push(`Location: ${content.hero.location}`);
 
   if (resumeExcerpt?.trim()) {

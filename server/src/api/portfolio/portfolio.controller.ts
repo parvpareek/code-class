@@ -324,8 +324,8 @@ export const suggestPortfolioCopy = async (req: Request, res: Response): Promise
       return;
     }
 
-    if (field !== 'tagline' && field !== 'bio' && field !== 'roleTitle') {
-      res.status(400).json({ message: 'field must be tagline, bio, roleTitle, or projectScaffold' });
+    if (field !== 'bio' && field !== 'roleTitle') {
+      res.status(400).json({ message: 'field must be bio, roleTitle, or projectScaffold' });
       return;
     }
 

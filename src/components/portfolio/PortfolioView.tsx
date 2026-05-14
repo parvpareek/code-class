@@ -35,7 +35,7 @@ import { PortfolioActivityHeatmaps } from '@/components/portfolio/PortfolioActiv
 import { PortfolioHeatmapModeToggle } from '@/components/portfolio/PortfolioHeatmapModeToggle';
 import { resolvePortfolioHeroAvatarUrl } from '@/lib/githubAvatar';
 import { formatEducationDateRange, formatExperienceDateRange } from '@/lib/portfolioDates';
-import { projectBuiltSummaryLine } from '@/lib/portfolioMerge';
+import { projectCardHookLine } from '@/lib/portfolioMerge';
 import { FeaturedProjectCard } from '@/components/portfolio/FeaturedProjectCard';
 import { markSignatureIntroPlayed, shouldPlaySignatureIntro, clearSignatureIntroPlayed } from '@/lib/portfolioIntroGate';
 import { cn } from '@/lib/utils';
@@ -125,14 +125,6 @@ function storySectionLabel(key: PortfolioStoryImageAfter): string {
   return map[key];
 }
 
-function hasStructuredStory(p: PortfolioProject): boolean {
-  const s = p.story;
-  if (!s) return false;
-  return [s.motivation, s.architecture, s.challenges, s.lessons, s.futurePlans].some(
-    (x) => (x ?? '').trim().length > 0
-  );
-}
-
 function ProjectStoryBody({ p }: { p: PortfolioProject }) {
   const s = p.story;
   const order: { field: PortfolioStoryImageAfter; body?: string }[] = [
@@ -143,21 +135,10 @@ function ProjectStoryBody({ p }: { p: PortfolioProject }) {
     { field: 'futurePlans', body: s?.futurePlans },
   ];
   const imgs = p.storyImages ?? [];
-  const ldFull = (p.longDescription ?? '').trim();
   const wb = (p.whyBuilt ?? '').trim();
-  const structured = hasStructuredStory(p);
-  const legacy = (p.longDescription ?? '').trim();
-  const sd = (p.shortDescription ?? '').trim();
-  const whatBuiltBody = ldFull || sd;
 
   return (
     <div className="space-y-6 text-left">
-      {whatBuiltBody ? (
-        <div className="space-y-2">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">What we built</h4>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{whatBuiltBody}</p>
-        </div>
-      ) : null}
       {wb ? (
         <div className="space-y-2">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Intent</h4>
@@ -194,12 +175,6 @@ function ProjectStoryBody({ p }: { p: PortfolioProject }) {
           </div>
         );
       })}
-      {!structured && legacy && !whatBuiltBody ? (
-        <div className="space-y-2">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Story</h4>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{legacy}</p>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -358,7 +333,13 @@ export function PortfolioView({
   const links = content.hero.links ?? {};
   const featuredLayout = content.featuredLayout ?? 'editorial';
   const featuredProjects = content.projects.filter((p) => p.featured !== false);
-  const heroTitle = (content.hero.roleTitle ?? '').trim() || 'Developer';
+  const hero = content.hero;
+  const heroRoleStatus = (() => {
+    const role = (hero.roleTitle ?? '').trim();
+    const st = (hero.statusLine ?? '').trim();
+    if (role && st) return `${role} · ${st}`;
+    return role || st || 'Developer';
+  })();
   const density = content.displayDensity ?? displayDensity;
   const spaceY = DENSITY_SPACE[density === 'compact' ? 'compact' : 'default'];
   const interactive = mode === 'edit' && !!onRequestEdit;
@@ -607,16 +588,8 @@ export function PortfolioView({
                           content.featuredSignal === 'PROJECTS' && 'text-[color:var(--pf-accent)]'
                         )}
                       >
-                        {heroTitle}
+                        {heroRoleStatus}
                       </p>
-                      {(content.hero.tagline ?? '').trim() ? (
-                        <p className="text-sm font-medium opacity-80">{content.hero.tagline}</p>
-                      ) : null}
-                      {(content.hero.currentFocus ?? '').trim() ? (
-                        <p className="text-sm font-medium leading-snug text-[color:var(--pf-accent)] opacity-95">
-                          {content.hero.currentFocus}
-                        </p>
-                      ) : null}
                       {(content.hero.bio ?? '').trim() ? (
                         <p className="max-w-xl text-sm leading-relaxed text-[var(--pf-muted)]">{content.hero.bio}</p>
                       ) : null}
@@ -630,11 +603,6 @@ export function PortfolioView({
                           <span className="flex items-center gap-1 text-[11px] opacity-75">
                             <MapPin className="h-3.5 w-3.5" />
                             {content.hero.location}
-                          </span>
-                        ) : null}
-                        {(content.hero.strongestSkill ?? '').trim() ? (
-                          <span className="rounded border border-[var(--pf-border)] bg-[color-mix(in_srgb,var(--pf-surface)_70%,transparent)] px-2 py-0.5 text-[11px] font-medium opacity-90">
-                            Strongest signal: {content.hero.strongestSkill}
                           </span>
                         ) : null}
                         {content.hero.openToWork ? (
@@ -866,7 +834,6 @@ export function PortfolioView({
                     )}
                   >
                     {featuredProjects.map((p, i) => {
-                      const ghStatsLine = projectGithubStatsLine(p);
                       return (
                         <div
                           key={p.id ?? i}
@@ -883,7 +850,6 @@ export function PortfolioView({
                             index={i}
                             featuredLayout={featuredLayout}
                             theme={theme}
-                            statsLine={ghStatsLine}
                             onOpen={() => setProjectOpen(p)}
                           />
                         </div>
@@ -1226,10 +1192,12 @@ export function PortfolioView({
                 <DialogTitle className="text-2xl font-bold tracking-tight">{projectOpen.title}</DialogTitle>
                 <DialogDescription asChild>
                   <div className="space-y-2 text-left">
-                    {(projectOpen.longDescription ?? '').trim().length >= 28 &&
-                    projectBuiltSummaryLine(projectOpen).trim() ? (
-                      <p className="text-base text-foreground/90">{projectBuiltSummaryLine(projectOpen)}</p>
-                    ) : null}
+                    {(() => {
+                      const storyHook = projectCardHookLine(projectOpen);
+                      return storyHook.trim() ? (
+                        <p className="text-base text-foreground/90">{storyHook}</p>
+                      ) : null;
+                    })()}
                   </div>
                 </DialogDescription>
               </DialogHeader>
@@ -1254,12 +1222,15 @@ export function PortfolioView({
                 );
               })()}
               {(projectOpen.signalCues ?? []).filter(Boolean).length ? (
-                <div className="flex flex-wrap gap-1">
-                  {(projectOpen.signalCues ?? []).filter(Boolean).map((c) => (
-                    <Badge key={c} variant="outline" className="text-[10px] font-normal">
-                      {c}
-                    </Badge>
-                  ))}
+                <div className="space-y-1">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Topics</p>
+                  <div className="flex flex-wrap gap-1">
+                    {(projectOpen.signalCues ?? []).filter(Boolean).map((c) => (
+                      <Badge key={c} variant="outline" className="text-[10px] font-normal">
+                        {c}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               ) : null}
               {(projectOpen.engineeringHighlights ?? []).filter(Boolean).length ? (

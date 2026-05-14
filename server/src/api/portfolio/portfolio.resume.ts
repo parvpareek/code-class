@@ -11,7 +11,6 @@ export function resumeTextToDraft(text: string): Partial<PortfolioContent> {
 
   const hero: PortfolioContent['hero'] = {
     roleTitle: '',
-    tagline: '',
     bio: '',
     location: '',
     avatarUrl: null,

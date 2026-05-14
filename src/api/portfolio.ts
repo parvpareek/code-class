@@ -59,7 +59,7 @@ export type ProjectScaffoldDto = {
 export async function suggestPortfolioField(
   body:
     | {
-        field: 'tagline' | 'bio' | 'roleTitle';
+        field: 'bio' | 'roleTitle';
         text: string;
         tone?: string;
         geminiApiKey?: string;

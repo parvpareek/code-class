@@ -1,13 +1,8 @@
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import type { PortfolioProject, PortfolioTheme } from '@/types/portfolio';
-import { projectBuiltSummaryLine } from '@/lib/portfolioMerge';
+import { projectCardHookLine } from '@/lib/portfolioMerge';
 import { cn } from '@/lib/utils';
-
-function metricsEntries(metrics: Record<string, string> | undefined): [string, string][] {
-  if (!metrics || typeof metrics !== 'object') return [];
-  return Object.entries(metrics).filter(([k, v]) => k.trim() && String(v).trim());
-}
 
 /** Best-effort live URL preview via thum.io; falls back to themed CTA if blocked or error. */
 function ProjectSidePreview({
@@ -67,7 +62,6 @@ export type FeaturedProjectCardProps = {
   index: number;
   featuredLayout: 'editorial' | 'grid';
   theme: PortfolioTheme;
-  statsLine: string | null;
   onOpen: () => void;
 };
 
@@ -76,20 +70,16 @@ export function FeaturedProjectCard({
   index: i,
   featuredLayout,
   theme,
-  statsLine: ghStatsLine,
   onOpen,
 }: FeaturedProjectCardProps) {
   const hasPreview = Boolean(p.imageUrl || p.liveUrl);
-  const manualMets = metricsEntries(p.metrics);
-  const cues = (p.signalCues ?? []).filter(Boolean);
-  const highs = (p.engineeringHighlights ?? []).filter(Boolean);
   const telemetry = theme === 'FORMULA_ONE';
   const campaign = theme === 'MARLBORO';
 
   const focusRing =
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pf-accent)]';
 
-  const builtLine = projectBuiltSummaryLine(p);
+  const hookLine = projectCardHookLine(p);
 
   if (campaign && featuredLayout === 'editorial') {
     return (
@@ -113,7 +103,7 @@ export function FeaturedProjectCard({
                 <span className="pf-campaign-title inline-block">{p.title}</span>
               </span>
             </h3>
-            <p className="max-w-2xl text-sm leading-relaxed text-[var(--pf-muted)] md:text-[15px]">{builtLine}</p>
+            <p className="max-w-2xl text-sm leading-relaxed text-[var(--pf-muted)] md:text-[15px]">{hookLine}</p>
           </div>
           {hasPreview ? (
             <div className="relative aspect-video max-h-[14rem] w-full overflow-hidden border border-[var(--pf-border)] md:max-h-[16rem]">
@@ -146,7 +136,7 @@ export function FeaturedProjectCard({
         <h3 className="pf-display pf-campaign-title-wrap mt-4 text-lg font-semibold leading-snug tracking-[-0.025em] md:mt-5 md:text-xl">
           <span className="pf-campaign-title inline-block">{p.title}</span>
         </h3>
-        <p className="mt-3 flex-1 text-xs leading-relaxed text-[var(--pf-muted)] md:mt-4 md:text-sm">{builtLine}</p>
+        <p className="mt-3 flex-1 text-xs leading-relaxed text-[var(--pf-muted)] md:mt-4 md:text-sm">{hookLine}</p>
         <span className="mt-6 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--pf-accent)] md:mt-7">
           View story
         </span>
@@ -171,7 +161,7 @@ export function FeaturedProjectCard({
         <>
           <div
             className={cn(
-              'flex shrink-0 flex-col items-center gap-1.5 border-b border-[var(--pf-border)] pb-3 text-center md:w-[5.25rem] md:border-b-0 md:border-r md:pb-0 md:pr-4 md:text-left',
+              'flex shrink-0 flex-col items-center gap-1 border-b border-[var(--pf-border)] pb-3 text-center md:w-[3.25rem] md:border-b-0 md:border-r md:pb-0 md:pr-3 md:text-left',
               telemetry && 'relative md:border-[color-mix(in_srgb,var(--pf-accent)_28%,var(--pf-border))]'
             )}
           >
@@ -188,53 +178,10 @@ export function FeaturedProjectCard({
             >
               {String(i + 1).padStart(2, '0')}
             </span>
-            {ghStatsLine ? (
-              <p className="line-clamp-2 max-w-[5.25rem] text-[9px] leading-tight text-[var(--pf-muted)] md:max-w-[4.75rem]">
-                {ghStatsLine}
-              </p>
-            ) : null}
-            {manualMets.length ? (
-              <p className="line-clamp-1 max-w-[5.25rem] text-[9px] leading-tight text-[var(--pf-muted)] opacity-90 md:max-w-[4.75rem]">
-                {manualMets.map(([k, v], mi) => (
-                  <span key={`m-${k}-${mi}`}>
-                    {mi > 0 ? ' · ' : ''}
-                    {k}: {v}
-                  </span>
-                ))}
-              </p>
-            ) : null}
-            {cues.length ? (
-              <div className="flex flex-wrap justify-center gap-1 md:justify-start">
-                {cues.map((c) => (
-                  <span
-                    key={c}
-                    className="rounded-full border border-[var(--pf-border)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide opacity-85"
-                  >
-                    {c}
-                  </span>
-                ))}
-              </div>
-            ) : null}
           </div>
           <div className="min-w-0 flex-1 space-y-3 text-center md:text-left">
             <h3 className="pf-display text-2xl font-bold leading-tight tracking-tight md:text-3xl">{p.title}</h3>
-            <p className="text-sm leading-relaxed text-[var(--pf-muted)]">{builtLine}</p>
-            {highs.length ? (
-              <ul className="list-inside list-disc space-y-1 text-left text-[12px] leading-relaxed text-[var(--pf-muted)]">
-                {highs.map((h, hi) => (
-                  <li key={hi}>{h}</li>
-                ))}
-              </ul>
-            ) : null}
-            {(p.techStack ?? []).length ? (
-              <div className="flex flex-wrap justify-center gap-1.5 pt-1 md:justify-start">
-                {(p.techStack ?? []).slice(0, 10).map((t) => (
-                  <span key={t} className="pf-chip rounded-full px-2 py-0.5 text-[10px] font-medium">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            ) : null}
+            <p className="text-sm leading-relaxed text-[var(--pf-muted)]">{hookLine}</p>
             <span className="inline-block pt-1 text-[11px] font-semibold text-[color:var(--pf-accent)]">
               View story →
             </span>
@@ -256,42 +203,9 @@ export function FeaturedProjectCard({
             >
               {String(i + 1).padStart(2, '0')}
             </span>
-            {cues.length ? (
-              <div className="flex max-w-[60%] flex-wrap justify-end gap-1">
-                {cues.slice(0, 3).map((c) => (
-                  <span
-                    key={c}
-                    className="rounded-full border border-[var(--pf-border)] px-1.5 py-0.5 text-[8px] font-semibold uppercase opacity-80"
-                  >
-                    {c}
-                  </span>
-                ))}
-              </div>
-            ) : null}
           </div>
           <h3 className="pf-display mt-2 text-lg font-bold leading-snug">{p.title}</h3>
-          <p className="mt-2 line-clamp-3 text-xs leading-relaxed opacity-85">{builtLine}</p>
-          {ghStatsLine || manualMets.length ? (
-            <p className="mt-2 line-clamp-2 text-[9px] leading-tight text-[var(--pf-muted)]">
-              {ghStatsLine ? <span>{ghStatsLine}</span> : null}
-              {ghStatsLine && manualMets.length ? <span> · </span> : null}
-              {manualMets.map(([k, v], mi) => (
-                <span key={`${k}-g-${mi}`}>
-                  {mi > 0 ? ' · ' : ''}
-                  {k}: {v}
-                </span>
-              ))}
-            </p>
-          ) : null}
-          {highs.length ? (
-            <ul className="mt-2 list-inside list-disc space-y-0.5 text-[11px] text-[var(--pf-muted)]">
-              {highs.slice(0, 3).map((h, hi) => (
-                <li key={hi} className="line-clamp-2">
-                  {h}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          <p className="mt-2 line-clamp-3 text-xs leading-relaxed opacity-85">{hookLine}</p>
           <span className="mt-auto pt-3 text-[10px] font-semibold text-[color:var(--pf-accent)]">View story →</span>
         </>
       )}
