@@ -777,35 +777,55 @@ const PortfolioStudioPage: React.FC = () => {
     </AlertDialog>
   );
 
+  const showPrivatePublishHint = !published && (phase === 'edit' || phase === 'reveal');
+
   const header = (
-    <header className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b bg-background/80 px-4 py-2 backdrop-blur-md">
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold tracking-tight">Portfolio Studio</span>
-        {(phase === 'edit' || phase === 'reveal') && (
-          <span className="text-xs text-muted-foreground">
-            {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : ''}
-          </span>
+    <header className="fixed left-0 right-0 top-0 z-30 border-b bg-background/80 backdrop-blur-md">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+          <span className="text-sm font-semibold tracking-tight">Portfolio Studio</span>
+          {(phase === 'edit' || phase === 'reveal') && (
+            <span className="text-[10px] text-muted-foreground sm:text-xs">
+              {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : ''}
+            </span>
+          )}
+        </div>
+        {showPrivatePublishHint ? (
+          <p
+            className="min-w-0 flex-1 truncate text-center text-[10px] leading-tight text-muted-foreground sm:text-xs"
+            title="Open the Private control (top-right), confirm your slug, then switch on Published."
+          >
+            <span className="whitespace-nowrap text-amber-700 dark:text-amber-300">Not published</span>
+            <span className="hidden sm:inline">
+              {' '}
+              — use the <span className="font-medium text-foreground">Private</span> pill, then{' '}
+              <span className="font-medium text-foreground">Published</span>
+            </span>
+            <span className="sm:hidden"> · top-right</span>
+          </p>
+        ) : (
+          <div className="min-w-0 flex-1" aria-hidden />
         )}
-      </div>
-      <div className="flex items-center gap-2">
-        {phase === 'reveal' ? (
-          <Button size="sm" onClick={() => setPhase('edit')}>
-            Customize
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {phase === 'reveal' ? (
+            <Button size="sm" onClick={() => setPhase('edit')}>
+              Customize
+            </Button>
+          ) : null}
+          {published && phase !== 'welcome' ? (
+            <Button variant="outline" size="sm" asChild>
+              <a href={`/p/${slug}`} target="_blank" rel="noreferrer">
+                Public
+              </a>
+            </Button>
+          ) : null}
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/classes" className="gap-1">
+              <LogOut className="h-3.5 w-3.5" />
+              Exit
+            </Link>
           </Button>
-        ) : null}
-        {published && phase !== 'welcome' ? (
-          <Button variant="outline" size="sm" asChild>
-            <a href={`/p/${slug}`} target="_blank" rel="noreferrer">
-              Public
-            </a>
-          </Button>
-        ) : null}
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/classes" className="gap-1">
-            <LogOut className="h-3.5 w-3.5" />
-            Exit
-          </Link>
-        </Button>
+        </div>
       </div>
     </header>
   );
@@ -1187,7 +1207,7 @@ const PortfolioStudioPage: React.FC = () => {
   return (
     <>
       {header}
-      <div className={cn('min-h-screen', phase === 'edit' ? 'pt-12' : 'pt-12')}>
+      <div className="min-h-screen pt-12">
         <PortfolioView
           displayName={displayName}
           content={draftContent}
@@ -1212,9 +1232,11 @@ const PortfolioStudioPage: React.FC = () => {
             Customize
           </Button>
         ) : null}
+        {(phase === 'edit' || phase === 'reveal') && (
+          <StudioPublishPill slug={slug} onSlug={setSlug} published={published} onPublished={setPublished} />
+        )}
         {phase === 'edit' ? (
           <>
-            <StudioPublishPill slug={slug} onSlug={setSlug} published={published} onPublished={setPublished} />
             <div className="fixed bottom-6 left-6 z-40 flex items-end gap-2">
               <AppearanceDock
                 hidden={false}

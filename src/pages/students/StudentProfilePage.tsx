@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 import LeetCodeStats from '../../components/ui/LeetCodeStats';
-import { CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, ExternalLink } from 'lucide-react';
 import { differenceInMilliseconds } from 'date-fns';
 
 const StudentProfilePage: React.FC = () => {
@@ -126,6 +126,33 @@ const StudentProfilePage: React.FC = () => {
       </div>
 
       <LeetCodeStats user={profile} />
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle>Portfolio</CardTitle>
+            {profile.portfolio && !profile.portfolio.published ? (
+              <Badge variant="secondary">Not live</Badge>
+            ) : null}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!profile.portfolio ? (
+            <p className="text-sm text-muted-foreground">This student has no portfolio on file yet.</p>
+          ) : profile.portfolio.published ? (
+            <Button asChild className="gap-2">
+              <Link to={`/p/${encodeURIComponent(profile.portfolio.slug)}`} target="_blank" rel="noreferrer">
+                View portfolio
+                <ExternalLink className="h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              They have a portfolio draft but it is not published — the public link stays hidden until they publish.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

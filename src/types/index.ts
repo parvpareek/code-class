@@ -51,6 +51,8 @@ export interface Student extends User {
 }
 
 export interface StudentProfile extends Student {
+  /** Present when the student has a portfolio profile row; teachers see slug + published only. */
+  portfolio: ClassmatePortfolioSummary | null;
   submissions: {
     completed: boolean;
     submissionTime: string | null;

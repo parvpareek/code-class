@@ -121,6 +121,10 @@ const LeaderboardPage: React.FC = () => {
     return <LoadingScreen />;
   }
 
+  const selectedClassId = form.watch('selectedClass');
+  const peerNavigation =
+    selectedClassId && selectedClassId !== 'all' ? { classId: selectedClassId } : null;
+
   return (
     <div className="py-6">
       <div className="mb-6">

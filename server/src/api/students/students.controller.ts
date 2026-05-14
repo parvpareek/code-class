@@ -18,6 +18,9 @@ export const getStudentProfile = async (req: Request, res: Response): Promise<vo
                 leetcodeEasySolved: true,
                 leetcodeMediumSolved: true,
                 leetcodeHardSolved: true,
+                portfolioProfile: {
+                    select: { slug: true, published: true },
+                },
                 submissions: {
                     select: {
                         completed: true,
@@ -54,7 +57,13 @@ export const getStudentProfile = async (req: Request, res: Response): Promise<vo
             return;
         }
 
-        res.status(200).json(student);
+        const { portfolioProfile, ...rest } = student;
+        res.status(200).json({
+            ...rest,
+            portfolio: portfolioProfile
+                ? { slug: portfolioProfile.slug, published: portfolioProfile.published }
+                : null,
+        });
     } catch (error) {
         console.error("Error fetching student profile:", error);
         res.status(500).json({ message: 'Error fetching student profile' });
