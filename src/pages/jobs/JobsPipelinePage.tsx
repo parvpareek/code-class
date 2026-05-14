@@ -16,8 +16,8 @@ import {
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { format, formatDistanceToNow, differenceInCalendarDays, endOfWeek, startOfWeek } from 'date-fns';
-import { ChevronRight, ExternalLink, LogOut, Pencil, Plus, Trash2 } from 'lucide-react';
+import { format, formatDistanceToNow, differenceInCalendarDays, endOfWeek, parse, startOfWeek } from 'date-fns';
+import { CalendarDays, ChevronRight, ExternalLink, LogOut, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import {
   createJobApplication,
@@ -36,12 +36,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { JobApplicationActivityDto, JobApplicationDto, JobApplicationStatus, PatchJobApplicationPayload } from '@/types/jobs';
@@ -58,16 +61,16 @@ const COLUMN_LABEL: Record<JobApplicationStatus, string> = {
 
 const STAGE_LANE: Record<JobApplicationStatus, string> = {
   SAVED:
-    'rounded-2xl border border-zinc-200/25 bg-zinc-100/30 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)]',
+    'rounded-2xl border border-zinc-200/25 bg-zinc-100/30 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)] dark:border-zinc-700/40 dark:bg-zinc-900/35 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]',
   APPLIED:
-    'rounded-2xl border border-sky-100/20 bg-sky-50/25 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5)]',
-  OA: 'rounded-2xl border border-amber-100/20 bg-amber-50/22 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)]',
+    'rounded-2xl border border-sky-100/20 bg-sky-50/25 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5)] dark:border-sky-500/20 dark:bg-sky-950/30 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]',
+  OA: 'rounded-2xl border border-amber-100/20 bg-amber-50/22 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)] dark:border-amber-500/20 dark:bg-amber-950/25 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]',
   INTERVIEW:
-    'rounded-2xl border border-violet-100/20 bg-violet-50/22 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)]',
+    'rounded-2xl border border-violet-100/20 bg-violet-50/22 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)] dark:border-violet-500/20 dark:bg-violet-950/25 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]',
   REJECTED:
-    'rounded-2xl border border-rose-100/15 bg-rose-50/18 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4)]',
+    'rounded-2xl border border-rose-100/15 bg-rose-50/18 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4)] dark:border-rose-500/15 dark:bg-rose-950/20 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]',
   OFFER:
-    'rounded-2xl border border-emerald-100/20 bg-emerald-50/22 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)]',
+    'rounded-2xl border border-emerald-100/20 bg-emerald-50/22 backdrop-blur-[1px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)] dark:border-emerald-500/20 dark:bg-emerald-950/25 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]',
 };
 
 const STAGE_DOT: Record<JobApplicationStatus, string> = {
@@ -90,12 +93,22 @@ const COLUMN_EMPTY_COPY: Record<JobApplicationStatus, string> = {
 
 const QUERY_KEY = ['job-applications'] as const;
 
-const JOBS_CANVAS_STYLE: React.CSSProperties = {
+const JOBS_CANVAS_STYLE_LIGHT: React.CSSProperties = {
   backgroundColor: 'rgba(231, 231, 234, 0.94)',
   backgroundImage: [
     'radial-gradient(ellipse 100% 58% at 50% -6%, rgba(255,255,255,0.9), transparent 56%)',
     'linear-gradient(to right, rgba(24,24,27,0.022) 1px, transparent 1px)',
     'linear-gradient(to bottom, rgba(24,24,27,0.022) 1px, transparent 1px)',
+  ].join(', '),
+  backgroundSize: '100% 100%, 24px 24px, 24px 24px',
+};
+
+const JOBS_CANVAS_STYLE_DARK: React.CSSProperties = {
+  backgroundColor: 'rgb(9 9 11)',
+  backgroundImage: [
+    'radial-gradient(ellipse 100% 58% at 50% -6%, rgba(255,255,255,0.05), transparent 56%)',
+    'linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px)',
+    'linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)',
   ].join(', '),
   backgroundSize: '100% 100%, 24px 24px, 24px 24px',
 };
@@ -116,32 +129,32 @@ function cardEnergyClass(app: JobApplicationDto): string {
     app.deadline != null ? differenceInCalendarDays(new Date(app.deadline), new Date()) : null;
   const oaSoon = app.status === 'OA' && days !== null && days >= 0 && days <= 3;
   if (app.status === 'OFFER') {
-    return 'border-l-[3px] border-l-emerald-400/90 shadow-[0_2px_16px_rgba(16,185,129,0.08)]';
+    return 'border-l-[3px] border-l-emerald-400/90 shadow-[0_2px_16px_rgba(16,185,129,0.08)] dark:border-l-emerald-500/80 dark:shadow-[0_2px_20px_rgba(16,185,129,0.12)]';
   }
   if (app.status === 'INTERVIEW') {
-    return 'shadow-[0_2px_18px_rgba(139,92,246,0.09)]';
+    return 'shadow-[0_2px_18px_rgba(139,92,246,0.09)] dark:shadow-[0_2px_22px_rgba(139,92,246,0.14)]';
   }
   if (oaSoon) {
-    return 'shadow-[0_2px_18px_rgba(245,158,11,0.1)]';
+    return 'shadow-[0_2px_18px_rgba(245,158,11,0.1)] dark:shadow-[0_2px_22px_rgba(245,158,11,0.16)]';
   }
   if (app.status === 'REJECTED') {
-    return 'border-l-[3px] border-l-rose-300/70';
+    return 'border-l-[3px] border-l-rose-300/70 dark:border-l-rose-500/60';
   }
   return '';
 }
 
 const STAGE_CARD_TOP: Record<JobApplicationStatus, string> = {
   SAVED:
-    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-zinc-300/30 before:to-transparent',
+    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-zinc-300/30 before:to-transparent dark:before:via-zinc-500/35',
   APPLIED:
-    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-sky-400/28 before:to-transparent',
-  OA: 'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-amber-400/32 before:to-transparent',
+    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-sky-400/28 before:to-transparent dark:before:via-sky-400/45',
+  OA: 'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-amber-400/32 before:to-transparent dark:before:via-amber-400/45',
   INTERVIEW:
-    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-violet-400/28 before:to-transparent',
+    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-violet-400/28 before:to-transparent dark:before:via-violet-400/45',
   REJECTED:
-    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-rose-400/22 before:to-transparent',
+    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-rose-400/22 before:to-transparent dark:before:via-rose-400/40',
   OFFER:
-    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-emerald-400/28 before:to-transparent',
+    'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-emerald-400/28 before:to-transparent dark:before:via-emerald-400/45',
 };
 
 function groupByStatus(apps: JobApplicationDto[]): Record<JobApplicationStatus, JobApplicationDto[]> {
@@ -255,15 +268,16 @@ function SortableJobCard({
       }}
       className={cn(
         'group relative cursor-grab overflow-hidden rounded-xl border border-zinc-200/40 bg-gradient-to-b from-white to-zinc-50/90 px-3 py-2.5 shadow-[0_2px_14px_rgba(0,0,0,0.045),inset_0_1px_0_0_rgba(255,255,255,0.85)]',
+        'dark:border-zinc-700/50 dark:from-zinc-900 dark:to-zinc-950/95 dark:shadow-[0_2px_14px_rgba(0,0,0,0.35),inset_0_1px_0_0_rgba(255,255,255,0.06)]',
         STAGE_CARD_TOP[app.status],
-        'transition-[box-shadow,border-color,transform] duration-200 hover:border-zinc-200/55 hover:shadow-[0_4px_22px_rgba(0,0,0,0.055)]',
+        'transition-[box-shadow,border-color,transform] duration-200 hover:border-zinc-200/55 hover:shadow-[0_4px_22px_rgba(0,0,0,0.055)] dark:hover:border-zinc-600/60 dark:hover:shadow-[0_4px_22px_rgba(0,0,0,0.45)]',
         'active:cursor-grabbing',
-        isDragging && 'z-10 cursor-grabbing opacity-[0.94] shadow-[0_12px_40px_rgba(0,0,0,0.1)]',
+        isDragging && 'z-10 cursor-grabbing opacity-[0.94] shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.55)]',
         cardEnergyClass(app)
       )}
     >
       <ChevronRight
-        className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-300 opacity-0 transition-opacity duration-200 group-hover:opacity-70"
+        className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-300 opacity-0 transition-opacity duration-200 group-hover:opacity-70 dark:text-zinc-600 dark:group-hover:opacity-80"
         aria-hidden
       />
 
@@ -274,12 +288,12 @@ function SortableJobCard({
             alt=""
             width={28}
             height={28}
-            className="mt-0.5 h-7 w-7 shrink-0 rounded-md border border-zinc-200/35 bg-white object-contain p-0.5 shadow-sm"
+            className="mt-0.5 h-7 w-7 shrink-0 rounded-md border border-zinc-200/35 bg-white object-contain p-0.5 shadow-sm dark:border-zinc-600/50 dark:bg-zinc-900"
             onError={() => setFavFailed(true)}
           />
         ) : (
           <span
-            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200/35 bg-zinc-50/90 text-[10px] font-semibold text-zinc-500 shadow-sm"
+            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200/35 bg-zinc-50/90 text-[10px] font-semibold text-zinc-500 shadow-sm dark:border-zinc-600/50 dark:bg-zinc-800/90 dark:text-zinc-400"
             aria-hidden
           >
             {app.company.trim().charAt(0).toUpperCase()}
@@ -287,26 +301,26 @@ function SortableJobCard({
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold leading-tight tracking-tight text-zinc-900">{app.company}</p>
-          <p className="mt-0.5 truncate text-xs leading-tight text-zinc-600">{app.role}</p>
+          <p className="truncate text-sm font-semibold leading-tight tracking-tight text-zinc-900 dark:text-zinc-100">{app.company}</p>
+          <p className="mt-0.5 truncate text-xs leading-tight text-zinc-600 dark:text-zinc-400">{app.role}</p>
 
           {hasMeta ? (
-            <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] leading-tight text-zinc-500">
+            <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] leading-tight text-zinc-500 dark:text-zinc-500">
               {app.appliedAt ? (
                 <p className="min-w-0 truncate">
-                  <span className="text-zinc-400">Applied</span>{' '}
-                  <span className="font-medium tabular-nums text-zinc-700">
+                  <span className="text-zinc-400 dark:text-zinc-500">Applied</span>{' '}
+                  <span className="font-medium tabular-nums text-zinc-700 dark:text-zinc-300">
                     {format(new Date(app.appliedAt), 'MMM d')}
                   </span>
                 </p>
               ) : null}
               {app.deadline ? (
                 <p className="min-w-0 truncate">
-                  <span className="text-zinc-400">Deadline</span>{' '}
+                  <span className="text-zinc-400 dark:text-zinc-500">Deadline</span>{' '}
                   <span
                     className={cn(
                       'font-medium tabular-nums',
-                      showUrgentDue ? 'text-amber-800' : 'text-zinc-700'
+                      showUrgentDue ? 'text-amber-800 dark:text-amber-400' : 'text-zinc-700 dark:text-zinc-300'
                     )}
                   >
                     {format(new Date(app.deadline), 'MMM d')}
@@ -323,7 +337,7 @@ function SortableJobCard({
               rel="noreferrer"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
-              className="mt-1 inline-flex max-w-full items-center gap-0.5 truncate text-[11px] font-medium text-zinc-400 underline-offset-4 hover:text-zinc-600 hover:underline"
+              className="mt-1 inline-flex max-w-full items-center gap-0.5 truncate text-[11px] font-medium text-zinc-400 underline-offset-4 hover:text-zinc-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
             >
               View application <span aria-hidden>→</span>
             </a>
@@ -364,7 +378,7 @@ function BoardColumn({
         </div>
       </SortableContext>
       {showColumnHints && apps.length === 0 ? (
-        <p className="mt-2 px-0.5 text-center text-[10px] leading-snug text-zinc-400/70">{COLUMN_EMPTY_COPY[status]}</p>
+        <p className="mt-2 px-0.5 text-center text-[10px] leading-snug text-zinc-400/70 dark:text-zinc-500/90">{COLUMN_EMPTY_COPY[status]}</p>
       ) : null}
     </div>
   );
@@ -373,13 +387,13 @@ function BoardColumn({
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center justify-center px-6 py-24 text-center">
-      <div className="w-full max-w-sm rounded-2xl border border-zinc-200/80 bg-white/70 p-8 shadow-sm shadow-zinc-900/5 backdrop-blur-sm">
-        <div className="mx-auto mb-5 h-14 w-14 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-200/80 shadow-inner" aria-hidden />
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900">Track your placement journey.</h2>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+      <div className="w-full max-w-sm rounded-2xl border border-zinc-200/80 bg-white/70 p-8 shadow-sm shadow-zinc-900/5 backdrop-blur-sm dark:border-zinc-700/60 dark:bg-zinc-900/70 dark:shadow-black/40">
+        <div className="mx-auto mb-5 h-14 w-14 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-200/80 shadow-inner dark:from-zinc-800 dark:to-zinc-900" aria-hidden />
+        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Track your placement journey.</h2>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
           Save opportunities, track interviews, and stay organized during placements.
         </p>
-        <p className="mt-3 text-xs leading-relaxed text-zinc-400">
+        <p className="mt-3 text-xs leading-relaxed text-zinc-400 dark:text-zinc-500">
           A calm workspace—ready whenever you add your first role.
         </p>
         <Button className="mt-8 w-full rounded-full px-6" onClick={onAdd}>
@@ -396,6 +410,65 @@ function parseTagsInput(raw: string): string[] {
     .map((t) => t.trim())
     .filter(Boolean)
     .slice(0, 12);
+}
+
+function DeadlineField({
+  id,
+  valueYmd,
+  onChangeYmd,
+  placeholder = 'Pick a date',
+}: {
+  id: string;
+  valueYmd: string;
+  onChangeYmd: (ymd: string) => void;
+  placeholder?: string;
+}) {
+  const selected = useMemo(() => {
+    const t = valueYmd?.trim();
+    if (!t) return undefined;
+    const d = parse(t, 'yyyy-MM-dd', new Date());
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  }, [valueYmd]);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          className={cn(
+            'h-10 w-full min-w-0 justify-start text-left font-normal',
+            !selected && 'text-muted-foreground'
+          )}
+        >
+          <CalendarDays className="mr-2 h-4 w-4 shrink-0 opacity-70" aria-hidden />
+          {selected ? format(selected, 'MMM d, yyyy') : placeholder}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(d) => onChangeYmd(d ? format(d, 'yyyy-MM-dd') : '')}
+          initialFocus
+        />
+        {selected ? (
+          <div className="border-t border-border p-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-full text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => onChangeYmd('')}
+            >
+              Clear deadline
+            </Button>
+          </div>
+        ) : null}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function AddApplicationDialog({
@@ -484,9 +557,9 @@ function AddApplicationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-zinc-200 bg-white sm:rounded-xl">
+      <DialogContent className="max-w-md border-zinc-200 bg-white sm:rounded-xl dark:border-zinc-700 dark:bg-zinc-950">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold">New application</DialogTitle>
+          <DialogTitle className="text-base font-semibold dark:text-zinc-100">New application</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 py-1">
           <div className="grid gap-1.5">
@@ -495,7 +568,6 @@ function AddApplicationDialog({
               id="ja-company"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              className="bg-white"
               autoComplete="organization"
             />
           </div>
@@ -505,7 +577,6 @@ function AddApplicationDialog({
               id="ja-role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="bg-white"
               autoComplete="off"
             />
           </div>
@@ -517,17 +588,16 @@ function AddApplicationDialog({
               onChange={(e) => onUrlChange(e.target.value)}
               onBlur={onUrlBlur}
               placeholder="LinkedIn or careers page"
-              className="bg-white"
             />
-            {parsing ? <p className="text-[10px] text-zinc-400">Reading link…</p> : null}
+            {parsing ? <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Reading link…</p> : null}
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="ja-notes">Notes (optional)</Label>
-            <Textarea id="ja-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[72px] bg-white" />
+            <Textarea id="ja-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[72px]" />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="ja-deadline">Deadline (optional)</Label>
-            <Input id="ja-deadline" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className="bg-white" />
+            <DeadlineField id="ja-deadline" valueYmd={deadline} onChangeYmd={setDeadline} placeholder="No deadline" />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="ja-tags">Tags (optional, comma-separated)</Label>
@@ -536,7 +606,6 @@ function AddApplicationDialog({
               value={tagsRaw}
               onChange={(e) => setTagsRaw(e.target.value)}
               placeholder="Remote, Intern, Backend"
-              className="bg-white"
             />
           </div>
         </div>
@@ -667,24 +736,24 @@ function JobDetailSheet({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="right"
-        overlayClassName="bg-zinc-950/35 backdrop-blur-sm"
-        className="flex h-full max-h-[100dvh] w-full min-w-0 max-w-[100vw] flex-col gap-0 overflow-hidden border-zinc-200/80 bg-[#f8f8f9] p-4 pb-5 pt-10 shadow-2xl sm:max-w-md sm:p-6 sm:pb-6 sm:pt-12"
+        overlayClassName="bg-zinc-950/35 backdrop-blur-sm dark:bg-black/55"
+        className="flex h-full max-h-[100dvh] w-full min-w-0 max-w-[100vw] flex-col gap-0 overflow-hidden border-zinc-200/80 bg-[#f8f8f9] p-4 pb-5 pt-10 shadow-2xl dark:border-zinc-700/80 dark:bg-zinc-950 sm:max-w-md sm:p-6 sm:pb-6 sm:pt-12"
       >
         {q.isLoading ? (
-          <div className="py-12 text-center text-sm text-zinc-500">Loading…</div>
+          <div className="py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">Loading…</div>
         ) : app ? (
           <>
-            <SheetHeader className="shrink-0 space-y-0 border-b border-zinc-200/80 pb-4 pr-6 text-left sm:pr-8">
+            <SheetHeader className="shrink-0 space-y-0 border-b border-zinc-200/80 pb-4 pr-6 text-left dark:border-zinc-700/80 sm:pr-8">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1">
-                  <SheetTitle className="text-lg font-semibold leading-tight text-zinc-900">{app.company}</SheetTitle>
-                  <p className="text-sm text-zinc-500">{app.role}</p>
+                  <SheetTitle className="text-lg font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{app.company}</SheetTitle>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">{app.role}</p>
                   {app.applicationUrl ? (
                     <a
                       href={app.applicationUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex max-w-full items-center gap-1 break-all text-xs font-medium text-zinc-500 underline-offset-4 hover:text-zinc-700 hover:underline"
+                      className="inline-flex max-w-full items-center gap-1 break-all text-xs font-medium text-zinc-500 underline-offset-4 hover:text-zinc-700 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200"
                     >
                       View application <span aria-hidden>→</span>
                       <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
@@ -711,23 +780,25 @@ function JobDetailSheet({
               {!isEditing ? (
                 <div className="w-full min-w-0 max-w-full space-y-3 text-sm">
                   {app.appliedAt ? (
-                    <p className="text-zinc-600">
+                    <p className="text-zinc-600 dark:text-zinc-400">
                       Applied{' '}
-                      <span className="font-medium text-zinc-800">
+                      <span className="font-medium text-zinc-800 dark:text-zinc-200">
                         {formatDistanceToNow(new Date(app.appliedAt), { addSuffix: true })}
                       </span>
                     </p>
                   ) : null}
                   {app.deadline ? (
-                    <p className="text-zinc-600">
+                    <p className="text-zinc-600 dark:text-zinc-400">
                       Deadline{' '}
-                      <span className="font-medium text-zinc-800">{format(new Date(app.deadline), 'MMM d, yyyy')}</span>
+                      <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                        {format(new Date(app.deadline), 'MMM d, yyyy')}
+                      </span>
                     </p>
                   ) : null}
                   {app.notes ? (
                     <div className="w-full min-w-0">
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">Notes</p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-700">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Notes</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                         {app.notes}
                       </p>
                     </div>
@@ -735,7 +806,10 @@ function JobDetailSheet({
                   {app.tags.length ? (
                     <div className="flex min-w-0 flex-wrap gap-1">
                       {app.tags.map((t) => (
-                        <span key={t} className="rounded-md bg-zinc-200/80 px-2 py-0.5 text-xs text-zinc-700">
+                        <span
+                          key={t}
+                          className="rounded-md bg-zinc-200/80 px-2 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                        >
                           {t}
                         </span>
                       ))}
@@ -750,7 +824,7 @@ function JobDetailSheet({
                       id="jd-company"
                       value={company}
                       onChange={(e) => setCompany(e.target.value)}
-                      className="w-full min-w-0 max-w-full bg-white"
+                      className="w-full min-w-0 max-w-full"
                       autoComplete="organization"
                     />
                   </div>
@@ -760,7 +834,7 @@ function JobDetailSheet({
                       id="jd-role"
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
-                      className="w-full min-w-0 max-w-full bg-white"
+                      className="w-full min-w-0 max-w-full"
                     />
                   </div>
                   <div className="grid min-w-0 gap-1.5">
@@ -770,36 +844,30 @@ function JobDetailSheet({
                       value={applicationUrl}
                       onChange={(e) => setApplicationUrl(e.target.value)}
                       placeholder="https://…"
-                      className="w-full min-w-0 max-w-full bg-white"
+                      className="w-full min-w-0 max-w-full"
                     />
                     {applicationUrl.trim().startsWith('http') ? (
                       <a
                         href={applicationUrl.trim()}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex max-w-full min-w-0 items-center gap-1 break-all text-[11px] font-medium text-zinc-500 underline-offset-4 hover:text-zinc-700 hover:underline"
+                        className="inline-flex max-w-full min-w-0 items-center gap-1 break-all text-[11px] font-medium text-zinc-500 underline-offset-4 hover:text-zinc-700 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200"
                       >
                         Open link <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                       </a>
                     ) : null}
                   </div>
                   {app.appliedAt ? (
-                    <p className="text-xs text-zinc-600">
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400">
                       Applied{' '}
-                      <span className="font-medium text-zinc-800">
+                      <span className="font-medium text-zinc-800 dark:text-zinc-200">
                         {formatDistanceToNow(new Date(app.appliedAt), { addSuffix: true })}
                       </span>
                     </p>
                   ) : null}
                   <div className="grid min-w-0 gap-1.5">
                     <Label htmlFor="jd-deadline">Deadline (optional)</Label>
-                    <Input
-                      id="jd-deadline"
-                      type="date"
-                      value={deadline}
-                      onChange={(e) => setDeadline(e.target.value)}
-                      className="w-full min-w-0 max-w-full bg-white"
-                    />
+                    <DeadlineField id="jd-deadline" valueYmd={deadline} onChangeYmd={setDeadline} placeholder="No deadline" />
                   </div>
                   <div className="grid min-w-0 gap-1.5">
                     <Label htmlFor="jd-notes">Notes</Label>
@@ -807,7 +875,7 @@ function JobDetailSheet({
                       id="jd-notes"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      className="min-h-[100px] w-full min-w-0 max-w-full resize-y bg-white"
+                      className="min-h-[100px] w-full min-w-0 max-w-full resize-y"
                       placeholder="Interview prep, contacts, next steps…"
                     />
                   </div>
@@ -818,32 +886,32 @@ function JobDetailSheet({
                       value={tagsRaw}
                       onChange={(e) => setTagsRaw(e.target.value)}
                       placeholder="Remote, Intern, Backend"
-                      className="w-full min-w-0 max-w-full bg-white"
+                      className="w-full min-w-0 max-w-full"
                     />
                   </div>
                 </div>
               )}
 
-              <div className="mt-8 w-full min-w-0 max-w-full border-t border-zinc-200/80 pt-4">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">Activity</p>
+              <div className="mt-8 w-full min-w-0 max-w-full border-t border-zinc-200/80 pt-4 dark:border-zinc-700/80">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Activity</p>
                 <ul className="mt-2 space-y-2">
                   {app.appliedAt ? (
-                    <li className="text-xs text-zinc-600">
-                      <span className="text-zinc-800">Applied</span>{' '}
+                    <li className="text-xs text-zinc-600 dark:text-zinc-400">
+                      <span className="text-zinc-800 dark:text-zinc-200">Applied</span>{' '}
                       {formatDistanceToNow(new Date(app.appliedAt), { addSuffix: true })}
                     </li>
                   ) : null}
                   {activities.map((a) => (
-                    <li key={a.id} className="min-w-0 break-words text-xs text-zinc-600">
-                      <span className="text-zinc-800">{activityCopy(a)}</span>{' '}
-                      <span className="text-zinc-400">{formatDistanceToNow(new Date(a.createdAt), { addSuffix: true })}</span>
+                    <li key={a.id} className="min-w-0 break-words text-xs text-zinc-600 dark:text-zinc-400">
+                      <span className="text-zinc-800 dark:text-zinc-200">{activityCopy(a)}</span>{' '}
+                      <span className="text-zinc-400 dark:text-zinc-500">{formatDistanceToNow(new Date(a.createdAt), { addSuffix: true })}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             </div>
 
-            <div className="flex w-full min-w-0 max-w-full shrink-0 flex-col gap-2 border-t border-zinc-200/80 pt-4 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-between sm:gap-3">
+            <div className="flex w-full min-w-0 max-w-full shrink-0 flex-col gap-2 border-t border-zinc-200/80 pt-4 dark:border-zinc-700/80 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-between sm:gap-3">
               <Button
                 variant="outline"
                 type="button"
@@ -867,7 +935,7 @@ function JobDetailSheet({
             </div>
           </>
         ) : (
-          <p className="py-8 text-center text-sm text-zinc-500">Could not load.</p>
+          <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">Could not load.</p>
         )}
       </SheetContent>
     </Sheet>
@@ -876,6 +944,7 @@ function JobDetailSheet({
 
 export default function JobsPipelinePage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { theme } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1030,31 +1099,34 @@ export default function JobsPipelinePage() {
   const { total: metricTotal, interviews: metricInterviews, oaThisWeek: metricOaWeek } = placementMetrics;
 
   return (
-    <div className="jobs-tracker relative flex min-h-screen flex-col text-zinc-900 antialiased" style={JOBS_CANVAS_STYLE}>
-      <header className="sticky top-0 z-20 border-b border-zinc-200/70 bg-white/55 backdrop-blur-md">
+    <div
+      className="jobs-tracker relative flex min-h-screen flex-col text-zinc-900 antialiased dark:text-zinc-100"
+      style={theme === 'dark' ? JOBS_CANVAS_STYLE_DARK : JOBS_CANVAS_STYLE_LIGHT}
+    >
+      <header className="sticky top-0 z-20 border-b border-zinc-200/70 bg-white/55 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/80">
         <div className="mx-auto flex w-full max-w-[min(1040px,calc(100vw-1rem))] items-start justify-between gap-3 px-4 py-3 sm:items-center sm:px-5">
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight text-zinc-900 sm:text-xl">Jobs</h1>
-            <p className="text-xs text-zinc-600 sm:text-sm">Track your placement pipeline.</p>
-            <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">
+            <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-xl">Jobs</h1>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 sm:text-sm">Track your placement pipeline.</p>
+            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-500 sm:text-sm">
               Stay organized during internship season.
             </p>
             {totalCount > 0 ? (
-              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500 sm:text-xs">
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500 dark:text-zinc-400 sm:text-xs">
                 <span>
-                  <span className="font-semibold text-zinc-700">{metricTotal}</span> applications
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{metricTotal}</span> applications
                 </span>
-                <span className="text-zinc-300" aria-hidden>
+                <span className="text-zinc-300 dark:text-zinc-600" aria-hidden>
                   ·
                 </span>
                 <span>
-                  <span className="font-semibold text-zinc-700">{metricInterviews}</span> interviews
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{metricInterviews}</span> interviews
                 </span>
-                <span className="text-zinc-300" aria-hidden>
+                <span className="text-zinc-300 dark:text-zinc-600" aria-hidden>
                   ·
                 </span>
                 <span>
-                  <span className="font-semibold text-zinc-700">{metricOaWeek}</span> OA this week
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{metricOaWeek}</span> OA this week
                 </span>
               </p>
             ) : null}
@@ -1063,7 +1135,7 @@ export default function JobsPipelinePage() {
             <Button
               size="icon"
               variant="outline"
-              className="h-9 w-9 shrink-0 rounded-full sm:hidden"
+              className="h-9 w-9 shrink-0 rounded-full sm:hidden dark:border-zinc-700"
               onClick={() => setAddOpen(true)}
               aria-label="Add application"
             >
@@ -1077,7 +1149,7 @@ export default function JobsPipelinePage() {
               <Plus className="mr-1.5 h-4 w-4" />
               Add Application
             </Button>
-            <Button variant="ghost" size="sm" className="text-zinc-600" asChild>
+            <Button variant="ghost" size="sm" className="text-zinc-600 dark:text-zinc-400" asChild>
               <Link to="/classes" className="gap-1.5">
                 <LogOut className="h-3.5 w-3.5" />
                 Exit
@@ -1107,20 +1179,22 @@ export default function JobsPipelinePage() {
                         className="hidden w-5 shrink-0 select-none flex-col items-center justify-start pt-16 lg:flex"
                         aria-hidden
                       >
-                        <div className="h-px w-full bg-gradient-to-r from-transparent via-zinc-300/90 to-transparent" />
-                        <ChevronRight className="-mt-0.5 h-3.5 w-3.5 text-zinc-300" />
+                        <div className="h-px w-full bg-gradient-to-r from-transparent via-zinc-300/90 to-transparent dark:via-zinc-600/50" />
+                        <ChevronRight className="-mt-0.5 h-3.5 w-3.5 text-zinc-300 dark:text-zinc-600" />
                       </div>
                     ) : null}
                     <div className="w-[min(88vw,272px)] shrink-0 snap-start sm:w-[248px]">
-                      <div className="sticky top-[52px] z-10 mb-2.5 rounded-lg border border-zinc-200/35 bg-white/75 px-2 py-1.5 backdrop-blur-md sm:static sm:mb-2 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+                      <div className="sticky top-[52px] z-10 mb-2.5 rounded-lg border border-zinc-200/35 bg-white/75 px-2 py-1.5 backdrop-blur-md dark:border-zinc-700/50 dark:bg-zinc-900/80 sm:static sm:mb-2 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
                         <div className="flex items-baseline justify-between gap-2">
                           <div className="flex min-w-0 items-center gap-1.5">
                             <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STAGE_DOT[status])} />
-                            <p className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600">
+                            <p className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-400">
                               {COLUMN_LABEL[status]}
                             </p>
                           </div>
-                          <span className="shrink-0 tabular-nums text-[10px] text-zinc-400">{columnIds[status].length}</span>
+                          <span className="shrink-0 tabular-nums text-[10px] text-zinc-400 dark:text-zinc-500">
+                            {columnIds[status].length}
+                          </span>
                         </div>
                       </div>
                       <BoardColumn
@@ -1138,9 +1212,9 @@ export default function JobsPipelinePage() {
               dropAnimation={{ duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }}
             >
               {activeApp ? (
-                <div className="w-[min(88vw,272px)] rotate-1 scale-[1.02] rounded-xl border border-zinc-200/90 bg-gradient-to-b from-white to-zinc-50 px-3 py-2.5 shadow-2xl">
-                  <p className="truncate text-sm font-semibold text-zinc-900">{activeApp.company}</p>
-                  <p className="mt-0.5 truncate text-xs text-zinc-600">{activeApp.role}</p>
+                <div className="w-[min(88vw,272px)] rotate-1 scale-[1.02] rounded-xl border border-zinc-200/90 bg-gradient-to-b from-white to-zinc-50 px-3 py-2.5 shadow-2xl dark:border-zinc-600/80 dark:from-zinc-900 dark:to-zinc-950">
+                  <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{activeApp.company}</p>
+                  <p className="mt-0.5 truncate text-xs text-zinc-600 dark:text-zinc-400">{activeApp.role}</p>
                 </div>
               ) : null}
             </DragOverlay>
