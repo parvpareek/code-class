@@ -15,7 +15,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  FileUser
+  FileUser,
+  Briefcase
 } from 'lucide-react';
 import {
   Tooltip,
@@ -68,7 +69,12 @@ const Sidebar: React.FC = () => {
       title: 'Portfolio',
       href: '/portfolio/studio',
       icon: <FileUser className="h-4 w-4" />,
-    }
+    },
+    {
+      title: 'Jobs',
+      href: '/jobs',
+      icon: <Briefcase className="h-4 w-4" />,
+    },
   ];
 
   // Filter nav items based on user role

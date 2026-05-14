@@ -44,6 +44,7 @@ import TestResultsPage from './pages/tests/TestResultsPage';
 import { StudentAnalyticsPage } from './pages/students/StudentAnalyticsPage';
 import PublicPortfolioPage from './pages/portfolio/PublicPortfolioPage';
 import PortfolioStudioPage from './pages/portfolio/PortfolioStudioPage';
+import JobsPipelinePage from './pages/jobs/JobsPipelinePage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 
@@ -136,6 +137,7 @@ function AppContent() {
         <Route path="/tests/:testId/take" element={<TestTakingPage />} />
         <Route path="/portfolio" element={<Navigate to="/portfolio/studio" replace />} />
         <Route path="/portfolio/studio" element={<PortfolioStudioPage />} />
+        <Route path="/jobs" element={<JobsPipelinePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>

@@ -62,6 +62,49 @@ model User {
   studentAssignmentInfos StudentAssignmentInfo[]
   dsaProgress            DSAProgress[]
   portfolioProfile       PortfolioProfile?
+  jobApplications        JobApplication[]
+}
+
+enum JobApplicationStatus {
+  SAVED
+  APPLIED
+  OA
+  INTERVIEW
+  REJECTED
+  OFFER
+}
+
+model JobApplication {
+  id               String                 @id @default(cuid())
+  userId           String
+  status           JobApplicationStatus   @default(SAVED)
+  company          String
+  role             String
+  applicationUrl String?
+  notes            String?
+  deadline         DateTime?
+  appliedAt        DateTime?
+  tags             String[]               @default([])
+  sortOrder        Int                    @default(0)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities       JobApplicationActivity[]
+
+  @@index([userId, status, sortOrder])
+  @@index([userId])
+}
+
+model JobApplicationActivity {
+  id            String                  @id @default(cuid())
+  applicationId String
+  kind          String
+  fromStatus    JobApplicationStatus?
+  toStatus      JobApplicationStatus?
+  createdAt     DateTime                @default(now())
+  application   JobApplication          @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
 }
 
 model Class {
