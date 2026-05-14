@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 import LeetCodeStats from '../../components/ui/LeetCodeStats';
-import { CheckCircle2, XCircle, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Briefcase } from 'lucide-react';
 import { differenceInMilliseconds } from 'date-fns';
 
 const StudentProfilePage: React.FC = () => {
@@ -124,6 +124,25 @@ const StudentProfilePage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {profile.jobApplications != null ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
+            <Briefcase className="h-4 w-4 text-muted-foreground" aria-hidden />
+            <CardTitle className="text-base">Job applications</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6 sm:flex-row sm:gap-10">
+            <div>
+              <p className="text-3xl font-bold tabular-nums">{profile.jobApplications.appliedThisWeek}</p>
+              <p className="text-sm text-muted-foreground">Applied this week (Mon–Sun)</p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold tabular-nums">{profile.jobApplications.appliedTotal}</p>
+              <p className="text-sm text-muted-foreground">Applied in total</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <LeetCodeStats user={profile} />
 

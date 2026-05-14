@@ -53,6 +53,11 @@ export interface Student extends User {
 export interface StudentProfile extends Student {
   /** Present when the student has a portfolio profile row; teachers see slug + published only. */
   portfolio: ClassmatePortfolioSummary | null;
+  /** Job pipeline counts from GET /students/:id (teacher); `appliedAt` set when they move a card to Applied+. */
+  jobApplications?: {
+    appliedThisWeek: number;
+    appliedTotal: number;
+  };
   submissions: {
     completed: boolean;
     submissionTime: string | null;

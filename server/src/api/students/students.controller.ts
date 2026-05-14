@@ -1,3 +1,4 @@
+import { endOfWeek, startOfWeek } from 'date-fns';
 import { Request, Response } from 'express';
 import prisma from '../../lib/prisma';
 
@@ -57,12 +58,35 @@ export const getStudentProfile = async (req: Request, res: Response): Promise<vo
             return;
         }
 
+        const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+
+        const [jobApplicationsAppliedTotal, jobApplicationsAppliedThisWeek] = await Promise.all([
+            prisma.jobApplication.count({
+                where: { userId: studentId, appliedAt: { not: null } },
+            }),
+            prisma.jobApplication.count({
+                where: {
+                    userId: studentId,
+                    appliedAt: {
+                        not: null,
+                        gte: weekStart,
+                        lte: weekEnd,
+                    },
+                },
+            }),
+        ]);
+
         const { portfolioProfile, ...rest } = student;
         res.status(200).json({
             ...rest,
             portfolio: portfolioProfile
                 ? { slug: portfolioProfile.slug, published: portfolioProfile.published }
                 : null,
+            jobApplications: {
+                appliedTotal: jobApplicationsAppliedTotal,
+                appliedThisWeek: jobApplicationsAppliedThisWeek,
+            },
         });
     } catch (error) {
         console.error("Error fetching student profile:", error);

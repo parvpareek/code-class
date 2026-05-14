@@ -372,7 +372,12 @@ const ClassDetailsPage: React.FC = () => {
                     </CardHeader>
                     <CardContent className="space-y-2 text-xs text-muted-foreground">
                       {c.portfolio?.published ? (
-                        <Badge variant="secondary">Portfolio live</Badge>
+                        <Badge
+                          variant="secondary"
+                          className="border-transparent bg-emerald-600 text-white shadow-sm hover:bg-emerald-600 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-500"
+                        >
+                          Portfolio live
+                        </Badge>
                       ) : (
                         <Badge variant="outline">Portfolio not published</Badge>
                       )}
