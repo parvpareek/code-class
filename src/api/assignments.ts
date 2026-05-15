@@ -61,11 +61,6 @@ export const deleteAssignment = async (assignmentId: string) => {
   return response.data;
 };
 
-export const checkSubmissions = async () => {
-  const response = await api.post('/assignments/check-submissions');
-  return response.data;
-};
-
 export const checkSubmissionsForAssignment = async (
   assignmentId: string
 ): Promise<{ message: string; lastChecked: string }> => {

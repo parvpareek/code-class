@@ -3,7 +3,6 @@ import { Prisma } from "@prisma/client"; // <-- ADD THIS LINE
 import prisma from "../../lib/prisma";
 import redisClient from "../../lib/redis";
 import {
-  checkAllSubmissions as checkAllSubmissionsService,
   checkSubmissionsForAssignment as checkSubmissionsForAssignmentService,
 } from "../../services/submission.service";
 import { getLeetCodeProblemDetails } from "../../services/leetcode.service";
@@ -323,28 +322,6 @@ export const getAssignmentById = async (
   } catch {
     logger.error("Error fetching assignment");
     res.status(500).json({ message: "Error fetching assignment" });
-  }
-};
-
-export const checkSubmissions = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    await checkAllSubmissionsService();
-
-    // Update lastSubmissionCheck for all assignments
-    await prisma.assignment.updateMany({
-      data: { lastSubmissionCheck: new Date() },
-    });
-
-    res.status(200).json({
-      message: "Submission check completed successfully.",
-      lastChecked: new Date().toISOString(),
-    });
-  } catch {
-    logger.error("Manual submission check failed");
-    res.status(500).json({ message: "Error during manual submission check" });
   }
 };
 

@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 import LeetCodeStats from '../../components/ui/LeetCodeStats';
-import { Briefcase } from 'lucide-react';
+import { ArrowLeft, Briefcase, CheckCircle2, ExternalLink, XCircle } from 'lucide-react';
 import { differenceInMilliseconds } from 'date-fns';
 
 const StudentProfilePage: React.FC = () => {

@@ -5,7 +5,6 @@ import {
   getAssignmentById,
   deleteAssignment,
   updateAssignment,
-  checkSubmissions,
   checkAssignmentSubmissions,
   checkMySubmissionsForAssignment,
   getMyAssignments,
@@ -40,8 +39,7 @@ router.post('/', protect, createAssignment);
 router.patch('/:assignmentId', protect, updateAssignment);
 router.delete('/:assignmentId', protect, deleteAssignment);
 
-// Submission checking
-router.post('/check-submissions', protect, checkSubmissions);
+// Submission checking: per-assignment only (POST /:assignmentId/check-submissions above)
 
 // Mark all as completed
 router.put('/:assignmentId/students/:studentId/mark-all-completed', protect, markAllAsCompleted);

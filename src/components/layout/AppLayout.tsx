@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { SidebarProvider, useSidebar } from '../../context/SidebarContext';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
-import { useSubmissionCheck } from '../../hooks/useSubmissionCheck';
 import LoadingScreen from '../ui/LoadingScreen';
 import { cn } from '../../lib/utils';
 
@@ -39,9 +38,6 @@ const AppLayoutContent: React.FC = () => {
 
 const AppLayout: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  
-  // Initialize background submission checking
-  useSubmissionCheck();
 
   if (isLoading) {
     return <LoadingScreen />;
